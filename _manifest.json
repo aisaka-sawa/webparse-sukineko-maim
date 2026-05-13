@@ -1,0 +1,35 @@
+{
+  "manifest_version": 2,
+  "id": "webparse.sukineko-suki-booking",
+  "version": "1.0.0",
+  "name": "Suki 猫娘咖啡厅预约查询",
+  "description": "从 Supabase 获取 Suki 猫娘咖啡厅预约数据，以 HTML 渲染 PNG 图片形式展示可预约女仆一览或单个女仆详情。支持 /suki 命令和 Tool 调用，图片渲染失败时自动降级为纯文本。",
+  "author": {
+    "name": "aisaka-sawa",
+    "url": "https://github.com/aisaka-sawa"
+  },
+  "license": "GPL-3.0",
+  "urls": {
+    "repository": "https://github.com/aisaka-sawa/webparse-sukineko-maim",
+    "issues": "https://github.com/aisaka-sawa/webparse-sukineko-maim/issues"
+  },
+  "host_application": {
+    "min_version": "1.0.0",
+    "max_version": "1.99.99"
+  },
+  "sdk": {
+    "min_version": "1.0.0",
+    "max_version": "2.99.99"
+  },
+  "dependencies": [
+    {
+      "type": "python_package",
+      "name": "aiohttp",
+      "version_spec": ">=3.9.0"
+    }
+  ],
+  "capabilities": ["send_message", "render"],
+  "i18n": {
+    "default_locale": "zh-CN"
+  }
+}
