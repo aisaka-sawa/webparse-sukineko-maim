@@ -226,3 +226,5 @@ plugin-dev-doc/
 
 # Sample/fetch data used for testing
 get.json
+
+google_search_plugin-main/

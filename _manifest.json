@@ -28,7 +28,7 @@
       "version_spec": ">=3.9.0"
     }
   ],
-  "capabilities": ["send_message", "render"],
+  "capabilities": ["send.text", "send.image", "render.html2png"],
   "i18n": {
     "default_locale": "zh-CN"
   }
