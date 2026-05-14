@@ -647,7 +647,11 @@ class SukiBookingPlugin(MaiBotPlugin):
             成功时返回 base64 图片数据，失败时返回 None
         """
         try:
-            result = await self.ctx.render.html2png(html=html)
+            result = await self.ctx.render.html2png(
+                html=html,
+                # allow_network=True,
+                wait_until="domcontentloaded",  # 同时改这个，避免外部资源加载慢导致超时
+            )
         except Exception as e:
             self.ctx.logger.error("html2png 渲染异常: %s", e)
             return None
@@ -674,7 +678,7 @@ class SukiBookingPlugin(MaiBotPlugin):
             return None
 
         try:
-            await self.ctx.send.image(image_base64=image_base64, stream_id=stream_id)
+            await self.ctx.send.image(image_data=image_base64, stream_id=stream_id)
             self.ctx.logger.info("PNG 图片已发送到 stream_id=%s", stream_id)
         except Exception as e:
             self.ctx.logger.error("发送图片失败: %s", e)
