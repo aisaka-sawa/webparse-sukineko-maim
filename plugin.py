@@ -649,8 +649,9 @@ class SukiBookingPlugin(MaiBotPlugin):
         try:
             result = await self.ctx.render.html2png(
                 html=html,
-                # allow_network=True,
-                wait_until="domcontentloaded",  # 同时改这个，避免外部资源加载慢导致超时
+                wait_until="networkidle0",
+                allow_network=True,
+                timeout_ms=10000,
             )
         except Exception as e:
             self.ctx.logger.error("html2png 渲染异常: %s", e)
