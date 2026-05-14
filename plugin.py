@@ -650,7 +650,7 @@ class SukiBookingPlugin(MaiBotPlugin):
             result = await self.ctx.render.html2png(
                 html=html,
                 wait_until="networkidle0",
-                allow_network=True,
+                # allow_network=True,
                 timeout_ms=10000,
             )
         except Exception as e:
