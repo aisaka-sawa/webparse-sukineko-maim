@@ -1,5 +1,8 @@
 """Suki 预约查询插件 - 从 Supabase 获取预约数据，以 HTML 渲染 PNG 图片形式回复用户"""
 
+import hashlib
+import os
+from base64 import b64encode
 from datetime import datetime, timezone
 
 import aiohttp
@@ -68,6 +71,10 @@ CSS_COMMON = """
     color: #2E7D32;
   }
   .status-closed {
+    background: #FFEBEE;
+    color: #C62828;
+  }
+  .status-full {
     background: #FFEBEE;
     color: #C62828;
   }
@@ -140,6 +147,15 @@ CSS_COMMON = """
     border-radius: 10px;
     background: #FFF3E0;
     color: #E65100;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .badge-full {
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 10px;
+    background: #FFEBEE;
+    color: #C62828;
     font-weight: 600;
     white-space: nowrap;
   }
@@ -259,6 +275,11 @@ class SukiBookingPlugin(MaiBotPlugin):
 
     async def on_load(self) -> None:
         self.ctx.logger.info("Suki 预约查询插件已加载")
+        self._image_cache: dict[str, str] = {}
+        try:
+            await self._download_images()
+        except Exception as e:
+            self.ctx.logger.error("图片缓存初始化失败: %s", e)
 
     async def on_unload(self) -> None:
         self.ctx.logger.info("Suki 预约查询插件已卸载")
@@ -266,6 +287,75 @@ class SukiBookingPlugin(MaiBotPlugin):
     async def on_config_update(self, scope: str, config_data: dict, version: str) -> None:
         if scope == "self":
             self.ctx.logger.info("插件配置已更新: version=%s", version)
+
+    # ── 图片缓存 ──────────────────────────────────────────────────────
+
+    async def _download_images(self) -> None:
+        """插件加载时缓存所有女仆图片到 pic/ 目录，并建立 base64 内存缓存"""
+        pic_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pic")
+        os.makedirs(pic_dir, exist_ok=True)
+        self._image_cache = {}
+
+        data = await self._fetch_booking(limit=1)
+        if not data:
+            self.ctx.logger.warning("图片缓存: 无法获取预约数据，跳过图片下载")
+            return
+
+        seen_urls: set[str] = set()
+        for item in data:
+            for m in item.get("maids", []) or []:
+                url = m.get("image", "")
+                if not url or url in seen_urls:
+                    continue
+                seen_urls.add(url)
+
+                # 从 URL 提取文件扩展名
+                url_path = url.split("?")[0]
+                ext = "png"
+                filename = url_path.rsplit("/", 1)[-1]
+                if "." in filename:
+                    raw_ext = filename.rsplit(".", 1)[-1].lower()
+                    if raw_ext in ("jpg", "jpeg", "png", "gif", "webp", "bmp"):
+                        ext = raw_ext
+
+                url_hash = hashlib.md5(url.encode()).hexdigest()[:12]
+                filepath = os.path.join(pic_dir, f"{url_hash}.{ext}")
+
+                # 已缓存则跳过下载
+                if os.path.exists(filepath):
+                    self.ctx.logger.debug("图片已缓存，跳过: %s", url)
+                else:
+                    try:
+                        async with aiohttp.ClientSession() as session:
+                            async with session.get(
+                                url,
+                                timeout=aiohttp.ClientTimeout(total=15),
+                            ) as resp:
+                                if resp.status == 200:
+                                    content = await resp.read()
+                                    with open(filepath, "wb") as f:
+                                        f.write(content)
+                                    self.ctx.logger.info("图片已缓存: %s -> %s", url, filepath)
+                                else:
+                                    self.ctx.logger.warning(
+                                        "下载图片失败: %s, status=%d", url, resp.status
+                                    )
+                                    continue
+                    except Exception as e:
+                        self.ctx.logger.error("下载图片异常: %s, %s", url, e)
+                        continue
+
+                # 构建 base64 data URI
+                try:
+                    with open(filepath, "rb") as f:
+                        file_content = f.read()
+                    mime = "image/jpeg" if ext in ("jpg", "jpeg") else f"image/{ext}"
+                    b64 = b64encode(file_content).decode("ascii")
+                    self._image_cache[url] = f"data:{mime};base64,{b64}"
+                except Exception as e:
+                    self.ctx.logger.error("读取图片缓存失败: %s, %s", filepath, e)
+
+        self.ctx.logger.info("图片缓存完成: 共缓存 %d 张图片", len(self._image_cache))
 
     # ── 数据获取 ──────────────────────────────────────────────────────
 
@@ -410,13 +500,12 @@ class SukiBookingPlugin(MaiBotPlugin):
     # ── HTML 生成：模板一 - 可预约女仆一览 ────────────────────────────
 
     @staticmethod
-    def _generate_available_maids_html(data: dict) -> str:
-        """生成「可预约女仆一览」HTML
-
-        筛选条件: disabled=false 且预约数 ≤ 1
+    def _generate_available_maids_html(data: dict, image_cache: dict[str, str] | None = None) -> str:
+        """生成女仆一览 HTML（含可预约/已约/已约满三种状态）
 
         Args:
             data: _filter_booking 返回的单条记录
+            image_cache: {图片URL: base64_data_uri} 缓存，用于内嵌图片
 
         Returns:
             完整的 HTML 字符串
@@ -428,12 +517,16 @@ class SukiBookingPlugin(MaiBotPlugin):
         # 统计预约数
         reserve_counts = SukiBookingPlugin._count_reservations_per_maid(reservations)
 
-        # 筛选可预约女仆（未禁用 且 预约数 ≤ 1）
-        available = [m for m in maids if not m.get("disabled") and reserve_counts.get(m.get("name", ""), 0) <= 1]
+        # 显示所有未禁用的女仆（不再隐藏已约满的）
+        active_maids = [m for m in maids if not m.get("disabled")]
 
         # 构建卡片
         cards_html = ""
-        for m in available:
+        avail_count = 0
+        partial_count = 0
+        full_count = 0
+
+        for m in active_maids:
             name = m.get("name", "")
             image = m.get("image", "")
             tags = m.get("tags", []) or []
@@ -446,14 +539,27 @@ class SukiBookingPlugin(MaiBotPlugin):
 
             if count == 0:
                 badge_html = '<span class="badge-avail">可预约</span>'
-            else:
+                avail_count += 1
+            elif count == 1:
                 badge_html = f'<span class="badge-booked">已约 {count}/2</span>'
+                partial_count += 1
+            else:  # count >= 2
+                badge_html = '<span class="badge-full">已约满</span>'
+                full_count += 1
 
             sig_text = _escape_html(signature) if signature else "暂无签名"
+
+            # 优先使用缓存的 base64 图片
+            if image and image_cache and image in image_cache:
+                img_src = image_cache[image]
+            elif image:
+                img_src = _escape_html(image)
+            else:
+                img_src = ""
             img_tag = (
-                f'<img class="card-img" src="{_escape_html(image)}" '
+                f'<img class="card-img" src="{img_src}" '
                 f'alt="{_escape_html(name)}" onerror="this.style.display=\'none\'">'
-                if image
+                if img_src
                 else '<div class="card-img"></div>'
             )
 
@@ -468,12 +574,10 @@ class SukiBookingPlugin(MaiBotPlugin):
       <div class="card-badge">{badge_html}</div>
     </div>"""
 
-        if not available:
-            cards_html = '<div class="empty-state">🌸 当前所有女仆均已约满<br>请稍后再来看看吧~</div>'
+        if not active_maids:
+            cards_html = '<div class="empty-state">🌸 暂无女仆信息</div>'
 
         # 汇总信息
-        total_maids = len(maids)
-        online_maids = len([m for m in maids if not m.get("disabled")])
         total_resv = len(reservations)
 
         status_html = (
@@ -496,21 +600,25 @@ class SukiBookingPlugin(MaiBotPlugin):
 <body>
 <div class="header">
   <div class="brand">☕ Suki 猫娘咖啡厅</div>
-  <div class="subtitle">可预约女仆一览</div>
+  <div class="subtitle">女仆一览</div>
   {status_html}
 </div>
 <div class="summary-row">
   <div class="summary-item">
-    <div class="summary-num">{online_maids}</div>
+    <div class="summary-num">{len(active_maids)}</div>
     <div>位女仆</div>
   </div>
   <div class="summary-item">
-    <div class="summary-num">{len(available)}</div>
+    <div class="summary-num">{avail_count}</div>
     <div>可预约</div>
   </div>
   <div class="summary-item">
-    <div class="summary-num">{total_resv}</div>
-    <div>条预约</div>
+    <div class="summary-num">{partial_count}</div>
+    <div>已约 1/2</div>
+  </div>
+  <div class="summary-item">
+    <div class="summary-num">{full_count}</div>
+    <div>已约满</div>
   </div>
 </div>
 {cards_html}
@@ -521,12 +629,13 @@ class SukiBookingPlugin(MaiBotPlugin):
     # ── HTML 生成：模板二 - 单个女仆预约详情 ──────────────────────────
 
     @staticmethod
-    def _generate_maid_detail_html(data: dict, maid_name: str) -> str:
+    def _generate_maid_detail_html(data: dict, maid_name: str, image_cache: dict[str, str] | None = None) -> str:
         """生成「单个女仆预约详情」HTML
 
         Args:
             data: _filter_booking 返回的单条记录
             maid_name: 目标女仆名称
+            image_cache: {图片URL: base64_data_uri} 缓存
 
         Returns:
             完整的 HTML 字符串，若未找到目标女仆则返回空状态
@@ -577,6 +686,8 @@ class SukiBookingPlugin(MaiBotPlugin):
             status_html = '<span class="maid-disabled-tag">暂不接单</span>'
         elif not booking_enabled:
             status_html = '<span class="status-tag status-closed">预约已关闭</span>'
+        elif len(maid_reservations) >= 2:
+            status_html = '<span class="status-tag status-full">已约满</span>'
         else:
             status_html = '<span class="status-tag status-open">可预约</span>'
 
@@ -596,10 +707,17 @@ class SukiBookingPlugin(MaiBotPlugin):
         else:
             resv_html = '<div class="empty-state" style="padding:24px 20px">📭 暂无预约记录</div>'
 
+        # 优先使用缓存的 base64 图片
+        if image and image_cache and image in image_cache:
+            img_src = image_cache[image]
+        elif image:
+            img_src = _escape_html(image)
+        else:
+            img_src = ""
         img_tag = (
-            f'<img class="detail-img" src="{_escape_html(image)}" '
+            f'<img class="detail-img" src="{img_src}" '
             f'alt="{_escape_html(name)}" onerror="this.style.display=\'none\'">'
-            if image
+            if img_src
             else '<div class="detail-img" style="height:200px"></div>'
         )
 
@@ -650,7 +768,6 @@ class SukiBookingPlugin(MaiBotPlugin):
             result = await self.ctx.render.html2png(
                 html=html,
                 wait_until="load",
-                # allow_network=True,
                 timeout_ms=10000,
             )
         except Exception as e:
@@ -667,8 +784,6 @@ class SukiBookingPlugin(MaiBotPlugin):
         elif isinstance(result, dict):
             image_base64 = result.get("image_base64") or result.get("data") or result.get("image") or ""
         elif isinstance(result, bytes):
-            from base64 import b64encode
-
             image_base64 = b64encode(result).decode("ascii")
         else:
             self.ctx.logger.error("html2png 返回了未知类型: %s", type(result))
@@ -693,15 +808,16 @@ class SukiBookingPlugin(MaiBotPlugin):
         "query_suki_booking",
         description=(
             "查询 Suki 猫娘咖啡厅的预约信息。"
-            "不指定 maid_name 时返回当前可预约女仆一览（预约数 0~1 的女仆列表）；"
-            "指定 maid_name 时返回该女仆的详细预约情况。"
-            "适用于用户询问 Suki 预约状态、某女仆是否可约、预约时间安排等场景。"
+            "不指定 maid_name 时返回全体女仆一览（含可预约/已约 1 次/已约满三种状态）；"
+            "指定 maid_name 时返回该女仆的详细预约情况（含所有预约记录）。"
+            "每位女仆最多可被预约 2 次，预约数 ≥ 2 表示已约满。"
+            "建议先调用 list_suki_maids 工具获取正确名称，再传入准确的 maid_name 查询详情。"
         ),
         parameters=[
             ToolParameterInfo(
                 name="maid_name",
                 param_type=ToolParamType.STRING,
-                description="要查询的女仆名称。不填则返回所有可预约女仆列表",
+                description="要查询的女仆名称（需精确匹配）。不填则返回全体女仆一览",
                 required=False,
             ),
             ToolParameterInfo(
@@ -736,11 +852,11 @@ class SukiBookingPlugin(MaiBotPlugin):
 
         # 根据是否指定 maid_name 选择模板
         if maid_name and maid_name.strip():
-            html = self._generate_maid_detail_html(item, maid_name.strip())
+            html = self._generate_maid_detail_html(item, maid_name.strip(), self._image_cache)
             desc = f"已生成女仆「{maid_name}」的预约详情图片"
         else:
-            html = self._generate_available_maids_html(item)
-            desc = "已生成可预约女仆一览图片"
+            html = self._generate_available_maids_html(item, self._image_cache)
+            desc = "已生成女仆一览图片"
 
         # 尝试渲染并发送 PNG
         image_base64 = None
@@ -769,6 +885,60 @@ class SukiBookingPlugin(MaiBotPlugin):
             formatted = self._format_booking(items)
             return {"success": True, "content": formatted}
 
+    @Tool(
+        "list_suki_maids",
+        description=(
+            "获取 Suki 猫娘咖啡厅当前全部女仆的名称列表。"
+            "在查询特定女仆的预约详情之前，优先调用此工具获取正确的女仆名称，"
+            "以应对用户输入错误、简繁体差异、别名等情况。"
+            "获取名称列表后，从中选取一个准确的名称作为 maid_name，"
+            "再调用 query_suki_booking 工具查询该女仆的详情。"
+        ),
+        parameters=[
+            ToolParameterInfo(
+                name="limit",
+                param_type=ToolParamType.INTEGER,
+                description="返回记录数量上限，默认 1",
+                required=False,
+                default=1,
+            ),
+        ],
+    )
+    async def handle_tool_list_maids(self, limit: int = 1, **kwargs):
+        """AI 工具调用：获取所有女仆名称列表，仅返回数据给 LLM，不发送消息"""
+        self.ctx.logger.info("Tool list_suki_maids 被调用: limit=%d", limit)
+
+        data = await self._fetch_booking(limit=limit)
+        if data is None:
+            return {"success": False, "content": "查询失败，请稍后重试。"}
+
+        items: list = data if isinstance(data, list) else [data]
+        if not items:
+            return {"success": False, "content": "暂无女仆数据。"}
+
+        item = items[0]
+        maids = item.get("maids", []) or []
+
+        if not maids:
+            return {"success": True, "content": "当前暂无女仆数据。"}
+
+        # 构建名称列表（不含图片等重数据）
+        names: list[str] = []
+        for m in maids:
+            name = m.get("name", "")
+            if name:
+                status = "在线" if not m.get("disabled") else "离线"
+                names.append(f"- {name}（{status}）")
+
+        return {
+            "success": True,
+            "content": (
+                f"Suki 猫娘咖啡厅当前共有 {len(names)} 位女仆：\n"
+                + "\n".join(names)
+                + "\n\n请从中选择准确的名称作为 maid_name 参数调用 query_suki_booking。"
+            ),
+        }
+
     # ── Command 组件 ──────────────────────────────────────────────────
 
     @Command("suki", pattern=r"^/suki")
@@ -794,7 +964,7 @@ class SukiBookingPlugin(MaiBotPlugin):
         item = items[0]
         self.ctx.logger.debug("Command /suki: 获取到数据，开始生成可预约女仆一览 HTML")
 
-        html = self._generate_available_maids_html(item)
+        html = self._generate_available_maids_html(item, self._image_cache)
         image_base64 = await self._render_and_send_png(html, stream_id)
 
         if image_base64:

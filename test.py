@@ -63,7 +63,12 @@ class MockSend:
         logger.info(f"send.text(stream_id={stream_id!r}): {text[:80]}")
         return True
 
-    async def image(self, image_base64: str, stream_id: str) -> bool:
+    async def image(self, image_base64: str = None, stream_id: str = None, **kwargs) -> bool:
+        # 支持 keyword argument 调用: image_data=... , stream_id=...
+        if image_base64 is None:
+            image_base64 = kwargs.get("image_data", "")
+        if stream_id is None:
+            stream_id = kwargs.get("stream_id", "")
         msg = {"type": "image", "data": image_base64, "stream_id": stream_id}
         self.sent_messages.append(msg)
         return True
@@ -80,10 +85,12 @@ class MockRender:
         self._raise_exception = raise_exception
         self.called = False
         self.last_html: str = ""
+        self.last_kwargs: dict = {}
 
-    async def html2png(self, html: str) -> Any:
+    async def html2png(self, html: str, **kwargs) -> Any:
         self.called = True
         self.last_html = html
+        self.last_kwargs = kwargs
         if self._raise_exception:
             raise self._raise_exception
         return self._return_value
@@ -97,6 +104,7 @@ class MockRender:
     def reset(self) -> None:
         self.called = False
         self.last_html = ""
+        self.last_kwargs = {}
         self._raise_exception = None
 
 
@@ -166,6 +174,7 @@ class MockMaiBotPlugin:
         self.ctx = MockContext()
         self._tools: list[dict[str, Any]] = []
         self._commands: list[dict[str, Any]] = []
+        self._image_cache: dict[str, str] = {}
 
     async def on_load(self) -> None:
         pass
@@ -632,7 +641,7 @@ async def test_generate_available_maids_html() -> None:
     # 基本结构检查
     assert_in_substring("<!DOCTYPE html>", html, "HTML 声明")
     assert_in_substring("Suki 猫娘咖啡厅", html, "品牌名称")
-    assert_in_substring("可预约女仆一览", html, "页面标题")
+    assert_in_substring("女仆一览", html, "页面标题")
     assert_in_substring(f"width={RENDER_WIDTH}", html, f"viewport width={RENDER_WIDTH}")
 
     # CSS 注入
@@ -653,9 +662,11 @@ async def test_generate_available_maids_html() -> None:
         "badge-booked", html, "有已约徽章类"
     )
 
-    # 汇总行
-    assert_in_substring("summary-row", html, "汇总行存在")
-    assert_in_substring("summary-num", html, "汇总数字存在")
+    # 汇总行：现在包含 4 个统计
+    assert_in_substring("位女仆", html, "汇总包含位女仆")
+    assert_in_substring("可预约", html, "汇总包含可预约")
+    assert_in_substring("已约 1/2", html, "汇总包含已约1/2")
+    assert_in_substring("已约满", html, "汇总包含已约满")
 
     # 页脚
     assert_in_substring("更新时间", html, "更新时间")
@@ -756,7 +767,8 @@ async def test_generate_maid_detail_html() -> None:
     assert_in_substring("猫娘A", html, "女仆名称")
     assert_in_substring("ASMR", html, "标签")
     assert_in_substring("你好呀，主人~", html, "签名")
-    assert_in_substring("可预约", html, "可预约状态")
+    # 猫娘A 有 2 条预约记录，应显示"已约满"
+    assert_in_substring("已约满", html, "有2条预约记录时显示已约满")
     assert_in_substring("预约记录（2 条）", html, "预约记录数")
     assert_in_substring("客人A", html, "客人 1")
     assert_in_substring("客人B", html, "客人 2")
