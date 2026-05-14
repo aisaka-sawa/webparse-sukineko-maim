@@ -649,7 +649,7 @@ class SukiBookingPlugin(MaiBotPlugin):
         try:
             result = await self.ctx.render.html2png(
                 html=html,
-                wait_until="networkidle0",
+                wait_until="load",
                 # allow_network=True,
                 timeout_ms=10000,
             )
