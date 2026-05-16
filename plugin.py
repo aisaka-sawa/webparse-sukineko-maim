@@ -689,8 +689,8 @@ class SukiBookingPlugin(MaiBotPlugin):
             # 图片
             if image and image_cache and image in image_cache:
                 img_src = image_cache[image]
-            elif image:
-                img_src = _escape_html(image)
+            # elif image:
+            #     img_src = _escape_html(image)
             else:
                 img_src = ""
 
