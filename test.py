@@ -175,6 +175,7 @@ class MockMaiBotPlugin:
         self._tools: list[dict[str, Any]] = []
         self._commands: list[dict[str, Any]] = []
         self._image_cache: dict[str, str] = {}
+        self._image_cache_hd: dict[str, str] = {}
 
     async def on_load(self) -> None:
         pass

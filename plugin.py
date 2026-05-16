@@ -330,6 +330,7 @@ class SukiBookingPlugin(MaiBotPlugin):
     async def on_load(self) -> None:
         self.ctx.logger.info("Suki 预约查询插件已加载")
         self._image_cache: dict[str, str] = {}
+        self._image_cache_hd: dict[str, str] = {}
         try:
             await self._download_images()
         except Exception as e:
@@ -345,10 +346,15 @@ class SukiBookingPlugin(MaiBotPlugin):
     # ── 图片缓存 ──────────────────────────────────────────────────────
 
     async def _download_images(self) -> None:
-        """插件加载时缓存所有女仆图片到 pic/ 目录，并建立 base64 内存缓存"""
+        """插件加载时缓存所有女仆图片，建立双版本 base64 内存缓存
+
+        - self._image_cache: 400px 宽缩略图，用于一览模式（双栏/单栏）
+        - self._image_cache_hd: 800px 宽高清图，用于单个女仆详情页
+        """
         pic_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pic")
         os.makedirs(pic_dir, exist_ok=True)
         self._image_cache = {}
+        self._image_cache_hd = {}
 
         data = await self._fetch_booking(limit=1)
         if not data:
@@ -373,17 +379,15 @@ class SukiBookingPlugin(MaiBotPlugin):
                         ext = raw_ext
 
                 url_hash = hashlib.md5(url.encode()).hexdigest()[:12]
-                filepath = os.path.join(pic_dir, f"{url_hash}.{ext}")
+                orig_filepath = os.path.join(pic_dir, f"{url_hash}_orig.{ext}")
+                hd_filepath = os.path.join(pic_dir, f"{url_hash}_hd.jpg")
+                thumb_filepath = os.path.join(pic_dir, f"{url_hash}_thumb.jpg")
+                # 向后兼容旧格式
+                legacy_filepath = os.path.join(pic_dir, f"{url_hash}.jpg")
 
-                # 已缓存则跳过下载
-                filepath_jpg = os.path.join(pic_dir, f"{url_hash}.jpg")
-                if os.path.exists(filepath_jpg):
-                    filepath = filepath_jpg
-                    ext = "jpg"
-                    self.ctx.logger.debug("图片已缓存（压缩版），跳过: %s", url)
-                elif os.path.exists(filepath):
-                    self.ctx.logger.debug("图片已缓存，跳过: %s", url)
-                else:
+                need_download = not os.path.exists(orig_filepath)
+
+                if need_download:
                     try:
                         async with aiohttp.ClientSession() as session:
                             async with session.get(
@@ -392,39 +396,10 @@ class SukiBookingPlugin(MaiBotPlugin):
                             ) as resp:
                                 if resp.status == 200:
                                     content = await resp.read()
-                                    # ── Pillow 压缩缩放：将原图缩至 400px 宽，
-                                    #     避免 base64 嵌入后 HTML 帧超过 16MB ──
-                                    try:
-                                        from PIL import Image as PILImage
-                                        img = PILImage.open(io.BytesIO(content))
-                                        if not getattr(img, "is_animated", False) and img.width > 400:
-                                            if img.mode in ("RGBA", "P", "LA"):
-                                                bg = PILImage.new("RGBA", img.size, (255, 255, 255, 255))
-                                                if img.mode == "P":
-                                                    img = img.convert("RGBA")
-                                                bg.paste(img, mask=img if img.mode == "RGBA" else None)
-                                                img = bg
-                                            img = img.convert("RGB")
-                                            ratio = 400 / img.width
-                                            new_h = int(img.height * ratio)
-                                            img = img.resize((400, new_h), PILImage.LANCZOS)
-                                            buf = io.BytesIO()
-                                            img.save(buf, format="JPEG", quality=85, optimize=True)
-                                            content = buf.getvalue()
-                                            ext = "jpg"
-                                            filepath = os.path.join(pic_dir, f"{url_hash}.{ext}")
-                                            self.ctx.logger.debug(
-                                                "图片已压缩: %s -> %dx%d JPEG, %d bytes",
-                                                url, 400, new_h, len(content),
-                                            )
-                                    except Exception as _pillow_err:
-                                        self.ctx.logger.debug(
-                                            "图片未压缩（%s），使用原图: %s", _pillow_err, url
-                                        )
-                                    # ── 保存到本地缓存 ──
-                                    with open(filepath, "wb") as f:
+                                    # 保存原图
+                                    with open(orig_filepath, "wb") as f:
                                         f.write(content)
-                                    self.ctx.logger.info("图片已缓存: %s -> %s", url, filepath)
+                                    self.ctx.logger.info("原图已缓存: %s -> %s", url, orig_filepath)
                                 else:
                                     self.ctx.logger.warning(
                                         "下载图片失败: %s, status=%d", url, resp.status
@@ -434,17 +409,96 @@ class SukiBookingPlugin(MaiBotPlugin):
                         self.ctx.logger.error("下载图片异常: %s, %s", url, e)
                         continue
 
-                # 构建 base64 data URI
-                try:
-                    with open(filepath, "rb") as f:
-                        file_content = f.read()
-                    mime = "image/jpeg" if ext in ("jpg", "jpeg") else f"image/{ext}"
-                    b64 = b64encode(file_content).decode("ascii")
-                    self._image_cache[url] = f"data:{mime};base64,{b64}"
-                except Exception as e:
-                    self.ctx.logger.error("读取图片缓存失败: %s, %s", filepath, e)
+                # ── 生成高清版（从原图缩放至 800px 宽，quality 90） ──
+                if not os.path.exists(hd_filepath) and os.path.exists(orig_filepath):
+                    try:
+                        from PIL import Image as PILImage
+                        img = PILImage.open(orig_filepath)
+                        if not getattr(img, "is_animated", False):
+                            if img.mode in ("RGBA", "P", "LA"):
+                                bg = PILImage.new("RGBA", img.size, (255, 255, 255, 255))
+                                if img.mode == "P":
+                                    img = img.convert("RGBA")
+                                bg.paste(img, mask=img if img.mode == "RGBA" else None)
+                                img = bg
+                            img = img.convert("RGB")
+                            if img.width > 800:
+                                ratio = 800 / img.width
+                                new_h = int(img.height * ratio)
+                                img = img.resize((800, new_h), PILImage.LANCZOS)
+                            buf = io.BytesIO()
+                            img.save(buf, format="JPEG", quality=90, optimize=True)
+                            with open(hd_filepath, "wb") as f:
+                                f.write(buf.getvalue())
+                            self.ctx.logger.debug("高清版已生成: %dx%d JPEG, %d bytes", img.width, img.height, len(buf.getvalue()))
+                    except Exception as e:
+                        self.ctx.logger.debug("高清版生成失败（%s），降级使用原图", e)
 
-        self.ctx.logger.info("图片缓存完成: 共缓存 %d 张图片", len(self._image_cache))
+                # ── 生成缩略版（从原图缩放至 400px 宽，quality 85） ──
+                if not os.path.exists(thumb_filepath) and os.path.exists(orig_filepath):
+                    # 尝试迁移旧格式文件
+                    if os.path.exists(legacy_filepath):
+                        try:
+                            os.rename(legacy_filepath, thumb_filepath)
+                            self.ctx.logger.debug("旧缩略图已迁移: %s -> %s", legacy_filepath, thumb_filepath)
+                        except OSError:
+                            pass
+                    if not os.path.exists(thumb_filepath):
+                        try:
+                            from PIL import Image as PILImage
+                            img = PILImage.open(orig_filepath)
+                            if not getattr(img, "is_animated", False):
+                                if img.mode in ("RGBA", "P", "LA"):
+                                    bg = PILImage.new("RGBA", img.size, (255, 255, 255, 255))
+                                    if img.mode == "P":
+                                        img = img.convert("RGBA")
+                                    bg.paste(img, mask=img if img.mode == "RGBA" else None)
+                                    img = bg
+                                img = img.convert("RGB")
+                                if img.width > 400:
+                                    ratio = 400 / img.width
+                                    new_h = int(img.height * ratio)
+                                    img = img.resize((400, new_h), PILImage.LANCZOS)
+                                buf = io.BytesIO()
+                                img.save(buf, format="JPEG", quality=85, optimize=True)
+                                with open(thumb_filepath, "wb") as f:
+                                    f.write(buf.getvalue())
+                                self.ctx.logger.debug("缩略版已生成: %dx%d JPEG, %d bytes", img.width, img.height, len(buf.getvalue()))
+                        except Exception as e:
+                            self.ctx.logger.debug("缩略版生成失败（%s），降级使用原图", e)
+
+                # ── 加载高清版到内存缓存 ──
+                hd_src = hd_filepath if os.path.exists(hd_filepath) else orig_filepath
+                if os.path.exists(hd_src):
+                    try:
+                        with open(hd_src, "rb") as f:
+                            hd_content = f.read()
+                        mime = "image/jpeg" if hd_src.endswith(".jpg") or hd_src.endswith(".jpeg") else f"image/{ext}"
+                        hd_b64 = b64encode(hd_content).decode("ascii")
+                        self._image_cache_hd[url] = f"data:{mime};base64,{hd_b64}"
+                    except Exception as e:
+                        self.ctx.logger.error("读取高清缓存失败: %s, %s", hd_src, e)
+
+                # ── 加载缩略版到内存缓存 ──
+                thumb_src = thumb_filepath
+                if not os.path.exists(thumb_src):
+                    thumb_src = legacy_filepath
+                if not os.path.exists(thumb_src):
+                    thumb_src = orig_filepath
+                if os.path.exists(thumb_src):
+                    try:
+                        with open(thumb_src, "rb") as f:
+                            thumb_content = f.read()
+                        mime = "image/jpeg" if thumb_src.endswith(".jpg") or thumb_src.endswith(".jpeg") else f"image/{ext}"
+                        thumb_b64 = b64encode(thumb_content).decode("ascii")
+                        self._image_cache[url] = f"data:{mime};base64,{thumb_b64}"
+                    except Exception as e:
+                        self.ctx.logger.error("读取缩略缓存失败: %s, %s", thumb_src, e)
+
+        self.ctx.logger.info(
+            "图片缓存完成: 共缓存 %d 张（高清 %d / 缩略 %d）",
+            len(seen_urls), len(self._image_cache_hd), len(self._image_cache),
+        )
 
     # ── 数据获取 ──────────────────────────────────────────────────────
 
@@ -960,7 +1014,7 @@ class SukiBookingPlugin(MaiBotPlugin):
 
         # 根据是否指定 maid_name 选择模板
         if maid_name and maid_name.strip():
-            html = self._generate_maid_detail_html(item, maid_name.strip(), self._image_cache)
+            html = self._generate_maid_detail_html(item, maid_name.strip(), self._image_cache_hd)
             desc = f"已生成女仆「{maid_name}」的预约详情图片"
         else:
             html = self._generate_available_maids_html(item, self._image_cache)
