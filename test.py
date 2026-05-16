@@ -641,32 +641,28 @@ async def test_generate_available_maids_html() -> None:
     # 基本结构检查
     assert_in_substring("<!DOCTYPE html>", html, "HTML 声明")
     assert_in_substring("Suki 猫娘咖啡厅", html, "品牌名称")
-    assert_in_substring("女仆一览", html, "页面标题")
     assert_in_substring(f"width={RENDER_WIDTH}", html, f"viewport width={RENDER_WIDTH}")
 
     # CSS 注入
     assert_in_substring("#FDF6F0", html, "背景色")
     assert_in_substring("#6B4226", html, "主标题色")
 
-    # 女仆信息检查
+    # 女仆信息检查（一览模板只显示 name, tags, 预约槽位；不显示 signature）
     assert_in_substring("猫娘A", html, "包含猫娘A 名称")
     assert_in_substring("ASMR", html, "包含标签")
-    assert_in_substring("你好呀，主人~", html, "包含签名")
+    # 签名不会出现在一览模板中，只在详情模板显示
 
     # 猫娘A 有 1 条预约，应显示"已约 1/2"
     assert_in_substring("已约 1/2", html, "猫娘A 预约数 = 1 显示已约 1/2")
 
     # 猫娘B 是 disabled，不应出现在可预约列表中
-    # 但由于 catgirl B 是 disabled=True，她被过滤掉
     assert_in_substring("badge-avail", html, "有可预约徽章类") or assert_in_substring(
         "badge-booked", html, "有已约徽章类"
     )
 
-    # 汇总行：现在包含 4 个统计
-    assert_in_substring("位女仆", html, "汇总包含位女仆")
+    # 汇总行：共 X 位  可预约 X 位
+    assert_in_substring("位", html, "汇总包含位")
     assert_in_substring("可预约", html, "汇总包含可预约")
-    assert_in_substring("已约 1/2", html, "汇总包含已约1/2")
-    assert_in_substring("已约满", html, "汇总包含已约满")
 
     # 页脚
     assert_in_substring("更新时间", html, "更新时间")
@@ -711,11 +707,17 @@ async def test_generate_available_maids_html_xss() -> None:
                 "name": '<script>alert("xss")</script>',
                 "image": "https://x.com/a.png",
                 "disabled": False,
-                "tags": ['<img onerror="alert(1)" src=x>'],
-                "signature": '<b>bold</b> & "quotes"',
+                "tags": ['<img onerror="alert(1)" src=x>', "A&B"],
+                "signature": "<b>bold</b>",
             },
         ],
-        "reservations": [],
+        "reservations": [
+            {
+                "maidName": '<script>alert("xss")</script>',
+                "timeSlot": "10:00-11:00",
+                "guestUsername": "Tom & Jerry",
+            },
+        ],
         "booking_enabled": True,
     }
     html = SukiBookingPlugin._generate_available_maids_html(data)
@@ -724,6 +726,7 @@ async def test_generate_available_maids_html_xss() -> None:
     assert_not_in_substring('<script>alert("xss")</script>', html, "script 标签被转义")
     assert_in_substring("&lt;script&gt;", html, "script 标签被转义为 &lt;script&gt;")
     assert_not_in_substring('onerror="alert(1)"', html, "onerror 被转义")
+    # & 在 guestUsername 和 tag 中会被转义
     assert_in_substring("&amp;", html, "& 被转义")
 
     print("  XSS 防护测试完成")
@@ -1300,6 +1303,453 @@ async def test_edge_cases(plugin: SukiBookingPlugin) -> None:
 
 
 # ============================================================================
+# 测试用例: 两栏布局 & 图片缓存
+# ============================================================================
+
+
+async def test_generate_available_maids_html_two_columns() -> None:
+    """测试一览模板 - 双栏布局（>12 位活跃女仆）"""
+    print_section("测试一览模板 - 双栏布局")
+
+    maids = []
+    for i in range(15):
+        maids.append({
+            "name": f"猫娘{i}",
+            "image": f"https://example.com/{i}.png",
+            "disabled": False,
+            "tags": [f"标签{i}", "标签B"],
+            "signature": f"签名{i}",
+        })
+
+    data = {
+        "maids": maids,
+        "reservations": [],
+        "booking_enabled": True,
+    }
+    html = SukiBookingPlugin._generate_available_maids_html(data)
+
+    assert_in_substring("grid-2col", html, "使用双栏 grid-2col")
+    assert_in_substring("card-2col", html, "使用双栏卡片 card-2col")
+    assert_in_substring("card-img-2col", html, "使用双栏图片 card-img-2col")
+    # CSS 定义中会有 card-img-single/slot-row 类，但 body 内容中不应该出现
+    body_start = html.find("<body>")
+    body_content = html[body_start:] if body_start > 0 else html
+    assert_not_in_substring("card-img-single", body_content, "双栏 body 不应有 card-img-single")
+    assert_not_in_substring("slot-row", body_content, "双栏 body 不应有 slot-row")
+    for i in range(15):
+        assert_in_substring(f"猫娘{i}", html, f"猫娘{i} 出现在 HTML 中")
+    assert_in_substring("15", html, "统计包含 15")
+
+    print(f"  生成 HTML 长度: {len(html)} 字符")
+    print("  双栏布局测试完成")
+
+
+async def test_generate_available_maids_html_single_column() -> None:
+    """测试一览模板 - 单栏布局（≤12 位活跃女仆）"""
+    print_section("测试一览模板 - 单栏布局")
+
+    maids = []
+    for i in range(5):
+        maids.append({
+            "name": f"猫娘{i}",
+            "image": f"https://example.com/{i}.png",
+            "disabled": False,
+            "tags": [f"标签{i}", "标签B", "标签C"],
+            "signature": f"签名{i}",
+        })
+
+    reservations = [
+        {"maidName": "猫娘0", "timeSlot": "10:00-11:00", "guestUsername": "客人X"},
+        {"maidName": "猫娘0", "timeSlot": "11:00-12:00", "guestUsername": "客人Y"},
+    ]
+
+    data = {
+        "maids": maids,
+        "reservations": reservations,
+        "booking_enabled": True,
+    }
+    html = SukiBookingPlugin._generate_available_maids_html(data)
+
+    # CSS 定义中会有 grid-2col/card-2col 类，但 body 内容中不应该出现
+    body_start = html.find("<body>")
+    body_content = html[body_start:] if body_start > 0 else html
+    assert_not_in_substring("grid-2col", body_content, "单栏 body 不使用 grid-2col")
+    assert_not_in_substring("card-2col", body_content, "单栏 body 不使用 card-2col")
+    assert_in_substring("card-img-single", body_content, "使用单栏图片 card-img-single")
+    assert_in_substring("slot-row", body_content, "单栏使用 slot-row")
+    assert_in_substring("标签C", html, "单栏显示第 3 个标签")
+    assert_in_substring("已约满", html, "2条预约显示已约满")
+    assert_in_substring("10:00-11:00", html, "显示预约时间 1")
+    assert_in_substring("11:00-12:00", html, "显示预约时间 2")
+    assert_in_substring("客人X", html, "显示客人 1")
+    assert_in_substring("客人Y", html, "显示客人 2")
+
+    print("  单栏布局测试完成")
+
+
+async def test_html_with_image_cache() -> None:
+    """测试 HTML 生成时使用 image_cache 参数"""
+    print_section("测试 HTML 生成 - image_cache 参数")
+
+    image_cache = {
+        "https://example.com/a.png": "data:image/png;base64,FAKE_BASE64_DATA",
+        "https://example.com/b.png": "data:image/png;base64,FAKE_BASE64_B",
+    }
+
+    data = {
+        "maids": [
+            {
+                "name": "猫娘A",
+                "image": "https://example.com/a.png",
+                "disabled": False,
+                "tags": ["温柔"],
+                "signature": "你好呀",
+            },
+            {
+                "name": "猫娘B",
+                "image": "https://example.com/b.png",
+                "disabled": False,
+                "tags": [],
+                "signature": "",
+            },
+        ],
+        "reservations": [],
+        "booking_enabled": True,
+    }
+
+    html_avail = SukiBookingPlugin._generate_available_maids_html(data, image_cache)
+    assert_in_substring("FAKE_BASE64_DATA", html_avail, "一览模板使用缓存 base64")
+    assert_in_substring("FAKE_BASE64_B", html_avail, "一览模板使用缓存 base64 B")
+    assert_not_in_substring("https://example.com/a.png", html_avail, "一览模板不出现原始 URL")
+
+    html_detail = SukiBookingPlugin._generate_maid_detail_html(data, "猫娘A", image_cache)
+    assert_in_substring("FAKE_BASE64_DATA", html_detail, "详情模板使用缓存 base64")
+    assert_not_in_substring("https://example.com/a.png", html_detail, "详情模板不出现原始 URL")
+
+    data_no_cache = {
+        "maids": [
+            {
+                "name": "未知猫娘",
+                "image": "https://unknown.com/c.png",
+                "disabled": False,
+                "tags": [],
+                "signature": "",
+            },
+        ],
+        "reservations": [],
+        "booking_enabled": True,
+    }
+    html_no_cache = SukiBookingPlugin._generate_available_maids_html(data_no_cache, image_cache)
+    assert_in_substring("https://unknown.com/c.png", html_no_cache, "未知图片使用原始 URL")
+
+    print("  image_cache 参数测试完成")
+
+
+async def test_render_and_send_png_no_stream_id() -> None:
+    """测试 _render_and_send_png - 空 stream_id"""
+    print_section("测试 _render_and_send_png - 空 stream_id")
+
+    plugin = create_plugin()
+    plugin.ctx.render.set_return("mock_base64")
+
+    result = await plugin._render_and_send_png("<html>test</html>", "")
+    assert_equal(result, "mock_base64", "空 stream_id 仍能成功")
+    assert_true(plugin.ctx.render.called, "html2png 被调用")
+
+    print("  空 stream_id 测试完成")
+
+
+# ============================================================================
+# 测试用例: list_suki_maids Tool
+# ============================================================================
+
+
+async def test_tool_list_maids() -> None:
+    """测试 Tool: handle_tool_list_maids"""
+    print_section("测试 Tool list_suki_maids")
+
+    plugin = create_plugin()
+
+    async def mock_fetch(limit=1):
+        return [make_sample_data()]
+
+    plugin._fetch_booking = mock_fetch
+
+    result = await plugin.handle_tool_list_maids(limit=1)
+
+    assert_true(result.get("success"), "list_suki_maids 成功")
+    assert_in_substring("猫娘A", result.get("content", ""), "包含在线女仆名")
+    assert_in_substring("在线", result.get("content", ""), "包含在线状态")
+    assert_in_substring("猫娘B", result.get("content", ""), "包含离线女仆名")
+    assert_in_substring("离线", result.get("content", ""), "包含离线状态")
+    assert_in_substring("共", result.get("content", ""), "包含总数")
+    assert_in_substring("位女仆", result.get("content", ""), "包含单位")
+
+    print_result("list_suki_maids 返回值", result)
+    print("  list_suki_maids 测试完成")
+
+
+async def test_tool_list_maids_empty() -> None:
+    """测试 Tool list_suki_maids - 无女仆数据"""
+    print_section("测试 Tool list_suki_maids - 空数据")
+
+    plugin = create_plugin()
+
+    async def mock_fetch_empty(limit=1):
+        return [{"maids": [], "reservations": [], "booking_enabled": True}]
+
+    plugin._fetch_booking = mock_fetch_empty
+
+    result = await plugin.handle_tool_list_maids(limit=1)
+
+    assert_true(result.get("success"), "成功")
+    assert_in_substring("暂无", result.get("content", ""), "提示暂无数据")
+
+    print("  list_suki_maids 空数据测试完成")
+
+
+async def test_tool_list_maids_failure() -> None:
+    """测试 Tool list_suki_maids - 数据获取失败"""
+    print_section("测试 Tool list_suki_maids - 失败")
+
+    plugin = create_plugin()
+
+    async def mock_fetch_fail(limit=1):
+        return None
+
+    plugin._fetch_booking = mock_fetch_fail
+
+    result = await plugin.handle_tool_list_maids(limit=1)
+
+    assert_true(not result.get("success"), "失败")
+    assert_in_substring("查询失败", result.get("content", ""), "错误提示")
+
+    print("  list_suki_maids 失败测试完成")
+
+
+# ============================================================================
+# 测试用例: Tool content_items 结构验证
+# ============================================================================
+
+
+async def test_tool_content_items_structure() -> None:
+    """测试 Tool 返回的 content_items 结构完整性"""
+    print_section("测试 Tool content_items 结构")
+
+    plugin = create_plugin()
+    plugin.ctx.render.set_return("mock_base64_image_data")
+
+    async def mock_fetch(limit=1):
+        return [make_sample_data()]
+
+    plugin._fetch_booking = mock_fetch
+
+    result = await plugin.handle_tool_query_booking(maid_name="", limit=1, stream_id="test")
+
+    if result.get("success") and "content_items" in result:
+        items = result["content_items"]
+        assert_true(len(items) > 0, "content_items 非空")
+        item = items[0]
+        assert_equal(item["type"], "image", "item type 为 image")
+        assert_equal(item["data"], "mock_base64_image_data", "item data 正确")
+        assert_equal(item["mime_type"], "image/png", "mime_type 正确")
+        assert_equal(item["name"], "suki_booking.png", "name 正确")
+        assert_in("description", item, "包含 description")
+        print("  content_items 结构完整")
+    else:
+        print("  content_items 不存在，跳过结构验证")
+
+    print("  content_items 结构测试完成")
+
+
+async def test_tool_query_booking_no_stream_id() -> None:
+    """测试 Tool 调用 - 无 stream_id 时不尝试渲染"""
+    print_section("测试 Tool 调用 - 无 stream_id")
+
+    plugin = create_plugin()
+
+    async def mock_fetch(limit=1):
+        return [make_sample_data()]
+
+    plugin._fetch_booking = mock_fetch
+
+    result = await plugin.handle_tool_query_booking(limit=1, stream_id="")
+
+    assert_true(result.get("success"), "成功")
+    assert_not_in("content_items", result, "无 stream_id 时无 content_items")
+    assert_in("content", result, "有 content 文本")
+
+    print("  无 stream_id 测试完成")
+
+
+# ============================================================================
+# 测试用例: _fetch_booking 错误路径
+# ============================================================================
+
+
+async def test_fetch_booking_error_paths() -> None:
+    """测试 _fetch_booking 的错误处理"""
+    print_section("测试 _fetch_booking 错误路径")
+
+    plugin = create_plugin()
+
+    import aiohttp
+    import plugin as plugin_module
+    import unittest.mock
+
+    # 测试非 200 状态码
+    class FakeResponse500:
+        status = 500
+        async def __aenter__(self):
+            return self
+        async def __aexit__(self, *a):
+            pass
+        async def text(self):
+            return "Internal Server Error"
+
+    class FakeSession500:
+        async def __aenter__(self):
+            return self
+        async def __aexit__(self, *a):
+            pass
+        async def get(self, *args, **kwargs):
+            return FakeResponse500()
+
+    with unittest.mock.patch.object(plugin_module.aiohttp, "ClientSession", FakeSession500):
+        result = await plugin._fetch_booking(limit=1)
+        assert_true(result is None, "500 状态码时返回 None")
+
+    # 测试 ClientError 异常（通过 session.get 直接抛出）
+    class FakeSessionError:
+        async def __aenter__(self):
+            return self
+        async def __aexit__(self, *a):
+            pass
+        async def get(self, *args, **kwargs):
+            raise aiohttp.ClientError("Connection failed")
+
+    with unittest.mock.patch.object(plugin_module.aiohttp, "ClientSession", FakeSessionError):
+        result = await plugin._fetch_booking(limit=1)
+        assert_true(result is None, "ClientError 时返回 None")
+
+    print("  _fetch_booking 错误路径测试完成")
+
+
+# ============================================================================
+# 测试用例: _format_booking 边界情况
+# ============================================================================
+
+
+async def test_format_booking_edge_cases() -> None:
+    """测试 _format_booking 边界情况"""
+    print_section("测试 _format_booking 边界情况")
+
+    multi_items = [
+        {
+            "booking_enabled": True,
+            "maids": [{"name": "猫娘1", "image": "", "disabled": False}],
+            "reservations": [],
+        },
+        {
+            "booking_enabled": False,
+            "maids": [{"name": "猫娘2", "image": "", "disabled": True}],
+            "reservations": [],
+        },
+    ]
+    result = SukiBookingPlugin._format_booking(multi_items)
+    assert_in_substring("预约 #1", result, "多条记录显示编号 1")
+    assert_in_substring("预约 #2", result, "多条记录显示编号 2")
+
+    none_maids = [{"booking_enabled": True, "maids": None, "reservations": None}]
+    result_none = SukiBookingPlugin._format_booking(none_maids)
+    assert_in_substring("共 0 位", result_none, "maids=None 时显示 0 位")
+    assert_in_substring("共 0 条", result_none, "reservations=None 时显示 0 条")
+
+    print("  _format_booking 边界测试完成")
+
+
+# ============================================================================
+# 测试用例: 详情页签名空值处理
+# ============================================================================
+
+
+async def test_detail_signature_variations() -> None:
+    """测试详情页签名的各种情况"""
+    print_section("测试详情页签名处理")
+
+    # 有签名 - 签名内容应出现在 body 中
+    data_sig = {
+        "maids": [{"name": "A", "image": "", "disabled": False, "tags": [], "signature": "我是签名"}],
+        "reservations": [],
+        "booking_enabled": True,
+    }
+    html = SukiBookingPlugin._generate_maid_detail_html(data_sig, "A")
+    assert_in_substring("我是签名", html, "签名内容出现")
+    # 签名内容出现在 body 的 detail-signature div 中（CSS 中也有类名定义）
+    body_sig = html[html.find("<body>"):]
+    assert_in_substring("<div class=\"detail-signature\">", body_sig, "签名 div 在 body 中")
+
+    # 空签名 - body 中不应有签名 div
+    data_empty = {
+        "maids": [{"name": "A", "image": "", "disabled": False, "tags": [], "signature": ""}],
+        "reservations": [],
+        "booking_enabled": True,
+    }
+    html_empty = SukiBookingPlugin._generate_maid_detail_html(data_empty, "A")
+    body_empty = html_empty[html_empty.find("<body>"):]
+    # CSS 块中有 detail-signature 定义，但 body 中不应有实际元素
+    assert_not_in_substring("<div class=\"detail-signature\">", body_empty, "空签名 body 无签名 div")
+
+    # 无签名字段 - body 中不应有签名 div
+    data_no_sig = {
+        "maids": [{"name": "A", "image": "", "disabled": False, "tags": []}],
+        "reservations": [],
+        "booking_enabled": True,
+    }
+    html_no = SukiBookingPlugin._generate_maid_detail_html(data_no_sig, "A")
+    body_no = html_no[html_no.find("<body>"):]
+    assert_not_in_substring("<div class=\"detail-signature\">", body_no, "无签名字段 body 无签名 div")
+
+    print("  签名处理测试完成")
+
+
+# ============================================================================
+# 测试用例: 预约记录排序
+# ============================================================================
+
+
+async def test_reservation_sorting_in_single_column() -> None:
+    """测试单栏模式中预约记录按时间排序"""
+    print_section("测试预约记录排序")
+
+    data = {
+        "maids": [
+            {"name": "猫娘A", "image": "", "disabled": False, "tags": [], "signature": ""},
+        ],
+        "reservations": [
+            {"maidName": "猫娘A", "timeSlot": "16:00-17:00", "guestUsername": "客人Z"},
+            {"maidName": "猫娘A", "timeSlot": "10:00-11:00", "guestUsername": "客人A"},
+            {"maidName": "猫娘A", "timeSlot": "13:00-14:00", "guestUsername": "客人M"},
+        ],
+        "booking_enabled": True,
+    }
+    html = SukiBookingPlugin._generate_available_maids_html(data)
+
+    # 单栏模式只显示前 2 条预约（按 timeSlot 排序），且只显示 slot 中
+    # 排序后：10:00 < 13:00 < 16:00，取前 2 条 = 10:00 和 13:00
+    assert_in_substring("10:00-11:00", html, "10:00-11:00 出现在 HTML 中")
+    assert_in_substring("13:00-14:00", html, "13:00-14:00 出现在 HTML 中")
+    # 16:00 是第 3 条，不应出现（只显示前 2 条）
+    assert_not_in_substring("16:00-17:00", html, "只显示前 2 条预约")
+    # 客人信息
+    assert_in_substring("客人A", html, "客人A 出现")
+    assert_in_substring("客人M", html, "客人M 出现")
+    assert_not_in_substring("客人Z", html, "客人Z 不出现")
+
+    print("  预约排序测试完成")
+
+
+# ============================================================================
 # 数据验证
 # ============================================================================
 
@@ -1370,6 +1820,33 @@ async def run_tests(args: argparse.Namespace) -> bool:
         await test_render_and_send_png_failure_exception()
         await test_render_and_send_png_failure_empty()
         await test_render_and_send_png_failure_unknown_type()
+
+        # 两栏布局 & 图片缓存
+        await test_generate_available_maids_html_two_columns()
+        await test_generate_available_maids_html_single_column()
+        await test_html_with_image_cache()
+        await test_render_and_send_png_no_stream_id()
+
+        # _format_booking 边界情况
+        await test_format_booking_edge_cases()
+
+        # 详情页签名处理
+        await test_detail_signature_variations()
+
+        # 预约记录排序
+        await test_reservation_sorting_in_single_column()
+
+        # list_suki_maids Tool
+        await test_tool_list_maids()
+        await test_tool_list_maids_empty()
+        await test_tool_list_maids_failure()
+
+        # Tool content_items 结构验证
+        await test_tool_content_items_structure()
+        await test_tool_query_booking_no_stream_id()
+
+        # _fetch_booking 错误路径
+        await test_fetch_booking_error_paths()
 
     # ── 网络测试（需要 API） ────────────────────────────────────
     if args.api or (not args.tool and not args.command and not args.format):

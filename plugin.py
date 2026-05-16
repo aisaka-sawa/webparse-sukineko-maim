@@ -39,27 +39,192 @@ CSS_COMMON = """
                  "Noto Sans SC", sans-serif;
     background: #FDF6F0;
     color: #4A3728;
-    padding: 20px 16px 24px;
-    line-height: 1.5;
+    padding: 16px 12px 20px;
+    line-height: 1.4;
   }
   .header {
     text-align: center;
-    margin-bottom: 20px;
-    padding-bottom: 16px;
-    border-bottom: 2px solid #E8D5C4;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1.5px solid #E8D5C4;
   }
   .header .brand {
-    font-size: 20px;
+    font-size: 18px;
     font-weight: 700;
     color: #6B4226;
-    letter-spacing: 0.5px;
   }
-  .header .subtitle {
+  .header .stats {
+    font-size: 11px;
+    color: #8B7355;
+    margin-top: 4px;
+  }
+  .header .stats .stat-em {
+    color: #6B4226;
+    font-weight: 600;
+  }
+
+  /* ── 双栏网格 ── */
+  .grid-2col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  /* ── 单栏卡片 ── */
+  .card {
+    background: #FFFFFF;
+    border-radius: 12px;
+    padding: 10px;
+    margin-bottom: 10px;
+    box-shadow: 0 1px 6px rgba(107,66,38,0.06);
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .card-img-single {
+    width: 96px;
+    height: 72px;
+    border-radius: 8px;
+    object-fit: cover;
+    flex-shrink: 0;
+    background: #F0E6DA;
+  }
+  .card-info {
+    flex: 1;
+    min-width: 0;
+  }
+  .card-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: #4A3728;
+    margin-bottom: 2px;
+  }
+  .card-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    margin-bottom: 4px;
+  }
+  .card-tag {
+    font-size: 9px;
+    padding: 1px 6px;
+    border-radius: 6px;
+    background: #F5EDE3;
+    color: #8B7355;
+    white-space: nowrap;
+  }
+  .card-badge {
+    flex-shrink: 0;
+    margin-top: 16px;
+  }
+
+  /* ── 预约槽位行 ── */
+  .slot-row {
+    font-size: 11px;
+    padding: 2px 4px;
+    border-radius: 4px;
+    margin-top: 2px;
+  }
+  .slot-occupied {
+    color: #8B7355;
+    background: #F5F0EB;
+  }
+  .slot-free {
+    color: #388E3C;
+    background: #E8F5E9;
+    font-weight: 500;
+  }
+
+  /* ── 双栏卡片 ── */
+  .card-2col {
+    background: #FFFFFF;
+    border-radius: 10px;
+    padding: 8px;
+    box-shadow: 0 1px 4px rgba(107,66,38,0.06);
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  .card-img-2col {
+    width: 64px;
+    height: 48px;
+    border-radius: 6px;
+    object-fit: cover;
+    flex-shrink: 0;
+    background: #F0E6DA;
+  }
+  .card-2col .card-name {
+    font-size: 13px;
+  }
+  .card-2col .card-tag {
+    font-size: 8px;
+    padding: 1px 5px;
+  }
+  .card-2col .card-badge {
+    margin-top: 10px;
+  }
+
+  /* ── 徽章 ── */
+  .badge-avail {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 8px;
+    background: #E8F5E9;
+    color: #388E3C;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .badge-booked {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 8px;
+    background: #FFF3E0;
+    color: #E65100;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .badge-full {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 8px;
+    background: #FFEBEE;
+    color: #C62828;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .badge-closed {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 8px;
+    background: #F5F5F5;
+    color: #9E9E9E;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  /* ── 空状态 / 页脚 ── */
+  .empty-state {
+    text-align: center;
+    padding: 36px 16px;
+    color: #A08C7A;
+    font-size: 13px;
+  }
+  .footer {
+    text-align: center;
+    margin-top: 14px;
+    padding-top: 10px;
+    border-top: 1px solid #E8D5C4;
+    font-size: 10px;
+    color: #B8A590;
+  }
+
+  /* ── 详情页样式 ── */
+  .subtitle {
     font-size: 13px;
     color: #8B7355;
     margin-top: 4px;
   }
-  .header .status-tag {
+  .status-tag {
     display: inline-block;
     margin-top: 8px;
     padding: 3px 14px;
@@ -79,88 +244,16 @@ CSS_COMMON = """
     background: #FFEBEE;
     color: #C62828;
   }
-  .card {
-    background: #FFFFFF;
-    border-radius: 14px;
-    padding: 14px;
-    margin-bottom: 14px;
-    box-shadow: 0 2px 8px rgba(107,66,38,0.08);
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-  }
-  .card-img {
-    width: 72px;
-    height: 72px;
-    border-radius: 10px;
-    object-fit: cover;
-    flex-shrink: 0;
-    background: #F0E6DA;
-  }
-  .card-info {
-    flex: 1;
-    min-width: 0;
-  }
-  .card-name {
-    font-size: 16px;
-    font-weight: 700;
-    color: #4A3728;
-    margin-bottom: 4px;
-  }
-  .card-tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    margin-bottom: 6px;
-  }
-  .card-tag {
-    font-size: 10px;
-    padding: 2px 8px;
-    border-radius: 8px;
-    background: #F5EDE3;
-    color: #8B7355;
-    white-space: nowrap;
-  }
-  .card-signature {
+  .maid-disabled-tag {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 3px 14px;
+    border-radius: 12px;
     font-size: 12px;
-    color: #A08C7A;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .card-badge {
-    flex-shrink: 0;
-    margin-top: 18px;
-    text-align: center;
-  }
-  .badge-avail {
-    font-size: 11px;
-    padding: 4px 10px;
-    border-radius: 10px;
-    background: #E8F5E9;
-    color: #388E3C;
     font-weight: 600;
-    white-space: nowrap;
+    background: #F5F5F5;
+    color: #9E9E9E;
   }
-  .badge-booked {
-    font-size: 11px;
-    padding: 4px 10px;
-    border-radius: 10px;
-    background: #FFF3E0;
-    color: #E65100;
-    font-weight: 600;
-    white-space: nowrap;
-  }
-  .badge-full {
-    font-size: 11px;
-    padding: 4px 10px;
-    border-radius: 10px;
-    background: #FFEBEE;
-    color: #C62828;
-    font-weight: 600;
-    white-space: nowrap;
-  }
-  /* 详情页样式 */
   .detail-img-wrap {
     text-align: center;
     margin-bottom: 16px;
@@ -227,46 +320,6 @@ CSS_COMMON = """
   .resv-guest {
     font-size: 12px;
     color: #8B7355;
-  }
-  .empty-state {
-    text-align: center;
-    padding: 40px 20px;
-    color: #A08C7A;
-    font-size: 14px;
-  }
-  .footer {
-    text-align: center;
-    margin-top: 18px;
-    padding-top: 12px;
-    border-top: 1px solid #E8D5C4;
-    font-size: 11px;
-    color: #B8A590;
-  }
-  .summary-row {
-    display: flex;
-    justify-content: center;
-    gap: 20px;
-    margin-bottom: 16px;
-  }
-  .summary-item {
-    text-align: center;
-    font-size: 12px;
-    color: #8B7355;
-  }
-  .summary-num {
-    font-size: 18px;
-    font-weight: 700;
-    color: #6B4226;
-  }
-  .maid-disabled-tag {
-    display: inline-block;
-    margin-top: 8px;
-    padding: 3px 14px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: 600;
-    background: #F5F5F5;
-    color: #9E9E9E;
   }
 """
 
@@ -537,7 +590,7 @@ class SukiBookingPlugin(MaiBotPlugin):
 
     @staticmethod
     def _generate_available_maids_html(data: dict, image_cache: dict[str, str] | None = None) -> str:
-        """生成女仆一览 HTML（含可预约/已约/已约满三种状态）
+        """生成女仆一览 HTML（≤12 人单栏，>12 人双栏）
 
         Args:
             data: _filter_booking 返回的单条记录
@@ -550,62 +603,92 @@ class SukiBookingPlugin(MaiBotPlugin):
         reservations = data.get("reservations", []) or []
         booking_enabled = data.get("booking_enabled", False)
 
-        # 统计预约数
         reserve_counts = SukiBookingPlugin._count_reservations_per_maid(reservations)
-
-        # 显示所有未禁用的女仆（不再隐藏已约满的）
         active_maids = [m for m in maids if not m.get("disabled")]
+        use_two_col = len(active_maids) > 12
 
-        # 构建卡片
+        # 可预约人数统计
+        avail_count = sum(1 for m in active_maids if reserve_counts.get(m.get("name", ""), 0) == 0)
+
+        # ── 构建卡片 ──
         cards_html = ""
-        avail_count = 0
-        partial_count = 0
-        full_count = 0
-
         for m in active_maids:
             name = m.get("name", "")
             image = m.get("image", "")
             tags = m.get("tags", []) or []
-            signature = m.get("signature", "")
             count = reserve_counts.get(name, 0)
 
-            tags_html = ""
-            for t in tags[:3]:  # 最多显示 3 个标签
-                tags_html += f'<span class="card-tag">{_escape_html(t)}</span>'
+            # 标签（两栏只显示 2 个）
+            tag_limit = 2 if use_two_col else 3
+            tags_html = "".join(
+                f'<span class="card-tag">{_escape_html(t)}</span>' for t in tags[:tag_limit]
+            )
 
-            if count == 0:
-                badge_html = '<span class="badge-avail">可预约</span>'
-                avail_count += 1
-            elif count == 1:
-                badge_html = f'<span class="badge-booked">已约 {count}/2</span>'
-                partial_count += 1
-            else:  # count >= 2
-                badge_html = '<span class="badge-full">已约满</span>'
-                full_count += 1
-
-            sig_text = _escape_html(signature) if signature else "暂无签名"
-
-            # 优先使用缓存的 base64 图片
+            # 图片
             if image and image_cache and image in image_cache:
                 img_src = image_cache[image]
             elif image:
                 img_src = _escape_html(image)
             else:
                 img_src = ""
-            img_tag = (
-                f'<img class="card-img" src="{img_src}" '
-                f'alt="{_escape_html(name)}" onerror="this.style.display=\'none\'">'
-                if img_src
-                else '<div class="card-img"></div>'
-            )
 
-            cards_html += f"""
+            # 徽章
+            if count == 0:
+                badge_html = '<span class="badge-avail">可预约</span>'
+            elif count == 1:
+                badge_html = f'<span class="badge-booked">已约 {count}/2</span>'
+            else:
+                badge_html = '<span class="badge-full">已约满</span>'
+
+            if use_two_col:
+                # ── 双栏模式：紧凑卡片 ──
+                img_tag = (
+                    f'<img class="card-img-2col" src="{img_src}" '
+                    f'alt="{_escape_html(name)}" onerror="this.style.display=\'none\'">'
+                    if img_src
+                    else '<div class="card-img-2col"></div>'
+                )
+                cards_html += f"""
+    <div class="card-2col">
+      {img_tag}
+      <div class="card-info">
+        <div class="card-name">{_escape_html(name)}</div>
+        <div class="card-tags">{tags_html}</div>
+      </div>
+      <div class="card-badge">{badge_html}</div>
+    </div>"""
+            else:
+                # ── 单栏模式：含预约槽位 ──
+                # 提取该女仆的预约记录（最多 2 条），按时间排序
+                maid_resv = sorted(
+                    [r for r in reservations if r.get("maidName", "") == name],
+                    key=lambda r: r.get("timeSlot", ""),
+                )
+                slot1_html = '<div class="slot-row slot-free">可预约</div>'
+                slot2_html = '<div class="slot-row slot-free">可预约</div>'
+                for i, res in enumerate(maid_resv[:2]):
+                    ts = _escape_html(res.get("timeSlot", ""))
+                    guest = _escape_html(res.get("guestUsername", ""))
+                    slot_html = f'<div class="slot-row slot-occupied">{ts}  {guest}</div>'
+                    if i == 0:
+                        slot1_html = slot_html
+                    elif i == 1:
+                        slot2_html = slot_html
+
+                img_tag = (
+                    f'<img class="card-img-single" src="{img_src}" '
+                    f'alt="{_escape_html(name)}" onerror="this.style.display=\'none\'">'
+                    if img_src
+                    else '<div class="card-img-single"></div>'
+                )
+                cards_html += f"""
     <div class="card">
       {img_tag}
       <div class="card-info">
         <div class="card-name">{_escape_html(name)}</div>
         <div class="card-tags">{tags_html}</div>
-        <div class="card-signature">{sig_text}</div>
+        {slot1_html}
+        {slot2_html}
       </div>
       <div class="card-badge">{badge_html}</div>
     </div>"""
@@ -613,18 +696,25 @@ class SukiBookingPlugin(MaiBotPlugin):
         if not active_maids:
             cards_html = '<div class="empty-state">🌸 暂无女仆信息</div>'
 
-        # 汇总信息
-        total_resv = len(reservations)
-
+        # ── Header ──
+        stats_html = (
+            f'共 <span class="stat-em">{len(active_maids)}</span> 位'
+            f'　可预约 <span class="stat-em">{avail_count}</span> 位'
+        )
         status_html = (
-            '<span class="status-tag status-open">预约开放中</span>'
+            '<span style="font-size:11px;color:#2E7D32;font-weight:600">预约开放中</span>'
             if booking_enabled
-            else '<span class="status-tag status-closed">预约已关闭</span>'
+            else '<span style="font-size:11px;color:#C62828;font-weight:600">预约已关闭</span>'
         )
 
         now_str = datetime.now(timezone.utc).strftime("%Y/%m/%d %H:%M")
-
         css = CSS_COMMON.replace("{width}", str(RENDER_WIDTH))
+
+        cards_container = (
+            f'<div class="grid-2col">{cards_html}</div>'
+            if use_two_col
+            else cards_html
+        )
 
         return f"""<!DOCTYPE html>
 <html lang="zh-CN">
@@ -636,28 +726,10 @@ class SukiBookingPlugin(MaiBotPlugin):
 <body>
 <div class="header">
   <div class="brand">☕ Suki 猫娘咖啡厅</div>
-  <div class="subtitle">女仆一览</div>
-  {status_html}
+  <div class="stats">{stats_html}</div>
+  <div>{status_html}</div>
 </div>
-<div class="summary-row">
-  <div class="summary-item">
-    <div class="summary-num">{len(active_maids)}</div>
-    <div>位女仆</div>
-  </div>
-  <div class="summary-item">
-    <div class="summary-num">{avail_count}</div>
-    <div>可预约</div>
-  </div>
-  <div class="summary-item">
-    <div class="summary-num">{partial_count}</div>
-    <div>已约 1/2</div>
-  </div>
-  <div class="summary-item">
-    <div class="summary-num">{full_count}</div>
-    <div>已约满</div>
-  </div>
-</div>
-{cards_html}
+{cards_container}
 <div class="footer">更新时间 {now_str}（UTC）</div>
 </body>
 </html>"""
