@@ -2,6 +2,7 @@
 
 import hashlib
 import os
+import io
 from base64 import b64encode
 from datetime import datetime, timezone
 
@@ -322,7 +323,12 @@ class SukiBookingPlugin(MaiBotPlugin):
                 filepath = os.path.join(pic_dir, f"{url_hash}.{ext}")
 
                 # 已缓存则跳过下载
-                if os.path.exists(filepath):
+                filepath_jpg = os.path.join(pic_dir, f"{url_hash}.jpg")
+                if os.path.exists(filepath_jpg):
+                    filepath = filepath_jpg
+                    ext = "jpg"
+                    self.ctx.logger.debug("图片已缓存（压缩版），跳过: %s", url)
+                elif os.path.exists(filepath):
                     self.ctx.logger.debug("图片已缓存，跳过: %s", url)
                 else:
                     try:
@@ -333,6 +339,36 @@ class SukiBookingPlugin(MaiBotPlugin):
                             ) as resp:
                                 if resp.status == 200:
                                     content = await resp.read()
+                                    # ── Pillow 压缩缩放：将原图缩至 400px 宽，
+                                    #     避免 base64 嵌入后 HTML 帧超过 16MB ──
+                                    try:
+                                        from PIL import Image as PILImage
+                                        img = PILImage.open(io.BytesIO(content))
+                                        if not getattr(img, "is_animated", False) and img.width > 400:
+                                            if img.mode in ("RGBA", "P", "LA"):
+                                                bg = PILImage.new("RGBA", img.size, (255, 255, 255, 255))
+                                                if img.mode == "P":
+                                                    img = img.convert("RGBA")
+                                                bg.paste(img, mask=img if img.mode == "RGBA" else None)
+                                                img = bg
+                                            img = img.convert("RGB")
+                                            ratio = 400 / img.width
+                                            new_h = int(img.height * ratio)
+                                            img = img.resize((400, new_h), PILImage.LANCZOS)
+                                            buf = io.BytesIO()
+                                            img.save(buf, format="JPEG", quality=85, optimize=True)
+                                            content = buf.getvalue()
+                                            ext = "jpg"
+                                            filepath = os.path.join(pic_dir, f"{url_hash}.{ext}")
+                                            self.ctx.logger.debug(
+                                                "图片已压缩: %s -> %dx%d JPEG, %d bytes",
+                                                url, 400, new_h, len(content),
+                                            )
+                                    except Exception as _pillow_err:
+                                        self.ctx.logger.debug(
+                                            "图片未压缩（%s），使用原图: %s", _pillow_err, url
+                                        )
+                                    # ── 保存到本地缓存 ──
                                     with open(filepath, "wb") as f:
                                         f.write(content)
                                     self.ctx.logger.info("图片已缓存: %s -> %s", url, filepath)
