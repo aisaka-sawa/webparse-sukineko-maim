@@ -146,7 +146,7 @@ CSS_COMMON = """
     gap: 6px;
   }
   .card-img-2col {
-    width: 64px;
+    width: 48px;
     height: 48px;
     border-radius: 6px;
     object-fit: cover;
@@ -157,11 +157,11 @@ CSS_COMMON = """
     font-size: 13px;
   }
   .card-2col .card-tag {
-    font-size: 8px;
-    padding: 1px 5px;
+    font-size: 7px;
+    padding: 1px 4px;
   }
   .card-2col .card-badge {
-    margin-top: 10px;
+    margin-top: 6px;
   }
 
   /* ── 徽章 ── */
