@@ -1,8 +1,8 @@
 """Suki 预约查询插件 - 从 Supabase 获取预约数据，以 HTML 渲染 PNG 图片形式回复用户"""
 
 import hashlib
-import os
 import io
+import os
 from base64 import b64encode
 from datetime import datetime, timezone
 
@@ -401,9 +401,7 @@ class SukiBookingPlugin(MaiBotPlugin):
                                         f.write(content)
                                     self.ctx.logger.info("原图已缓存: %s -> %s", url, orig_filepath)
                                 else:
-                                    self.ctx.logger.warning(
-                                        "下载图片失败: %s, status=%d", url, resp.status
-                                    )
+                                    self.ctx.logger.warning("下载图片失败: %s, status=%d", url, resp.status)
                                     continue
                     except Exception as e:
                         self.ctx.logger.error("下载图片异常: %s, %s", url, e)
@@ -413,6 +411,7 @@ class SukiBookingPlugin(MaiBotPlugin):
                 if not os.path.exists(hd_filepath) and os.path.exists(orig_filepath):
                     try:
                         from PIL import Image as PILImage
+
                         img = PILImage.open(orig_filepath)
                         if not getattr(img, "is_animated", False):
                             if img.mode in ("RGBA", "P", "LA"):
@@ -430,7 +429,9 @@ class SukiBookingPlugin(MaiBotPlugin):
                             img.save(buf, format="JPEG", quality=90, optimize=True)
                             with open(hd_filepath, "wb") as f:
                                 f.write(buf.getvalue())
-                            self.ctx.logger.debug("高清版已生成: %dx%d JPEG, %d bytes", img.width, img.height, len(buf.getvalue()))
+                            self.ctx.logger.debug(
+                                "高清版已生成: %dx%d JPEG, %d bytes", img.width, img.height, len(buf.getvalue())
+                            )
                     except Exception as e:
                         self.ctx.logger.debug("高清版生成失败（%s），降级使用原图", e)
 
@@ -446,6 +447,7 @@ class SukiBookingPlugin(MaiBotPlugin):
                     if not os.path.exists(thumb_filepath):
                         try:
                             from PIL import Image as PILImage
+
                             img = PILImage.open(orig_filepath)
                             if not getattr(img, "is_animated", False):
                                 if img.mode in ("RGBA", "P", "LA"):
@@ -463,7 +465,9 @@ class SukiBookingPlugin(MaiBotPlugin):
                                 img.save(buf, format="JPEG", quality=85, optimize=True)
                                 with open(thumb_filepath, "wb") as f:
                                     f.write(buf.getvalue())
-                                self.ctx.logger.debug("缩略版已生成: %dx%d JPEG, %d bytes", img.width, img.height, len(buf.getvalue()))
+                                self.ctx.logger.debug(
+                                    "缩略版已生成: %dx%d JPEG, %d bytes", img.width, img.height, len(buf.getvalue())
+                                )
                         except Exception as e:
                             self.ctx.logger.debug("缩略版生成失败（%s），降级使用原图", e)
 
@@ -489,7 +493,11 @@ class SukiBookingPlugin(MaiBotPlugin):
                     try:
                         with open(thumb_src, "rb") as f:
                             thumb_content = f.read()
-                        mime = "image/jpeg" if thumb_src.endswith(".jpg") or thumb_src.endswith(".jpeg") else f"image/{ext}"
+                        mime = (
+                            "image/jpeg"
+                            if thumb_src.endswith(".jpg") or thumb_src.endswith(".jpeg")
+                            else f"image/{ext}"
+                        )
                         thumb_b64 = b64encode(thumb_content).decode("ascii")
                         self._image_cache[url] = f"data:{mime};base64,{thumb_b64}"
                     except Exception as e:
@@ -497,7 +505,9 @@ class SukiBookingPlugin(MaiBotPlugin):
 
         self.ctx.logger.info(
             "图片缓存完成: 共缓存 %d 张（高清 %d / 缩略 %d）",
-            len(seen_urls), len(self._image_cache_hd), len(self._image_cache),
+            len(seen_urls),
+            len(self._image_cache_hd),
+            len(self._image_cache),
         )
 
     # ── 数据获取 ──────────────────────────────────────────────────────
@@ -674,9 +684,7 @@ class SukiBookingPlugin(MaiBotPlugin):
 
             # 标签（两栏只显示 2 个）
             tag_limit = 2 if use_two_col else 3
-            tags_html = "".join(
-                f'<span class="card-tag">{_escape_html(t)}</span>' for t in tags[:tag_limit]
-            )
+            tags_html = "".join(f'<span class="card-tag">{_escape_html(t)}</span>' for t in tags[:tag_limit])
 
             # 图片
             if image and image_cache and image in image_cache:
@@ -764,11 +772,7 @@ class SukiBookingPlugin(MaiBotPlugin):
         now_str = datetime.now(timezone.utc).strftime("%Y/%m/%d %H:%M")
         css = CSS_COMMON.replace("{width}", str(RENDER_WIDTH))
 
-        cards_container = (
-            f'<div class="grid-2col">{cards_html}</div>'
-            if use_two_col
-            else cards_html
-        )
+        cards_container = f'<div class="grid-2col">{cards_html}</div>' if use_two_col else cards_html
 
         return f"""<!DOCTYPE html>
 <html lang="zh-CN">
@@ -872,13 +876,12 @@ class SukiBookingPlugin(MaiBotPlugin):
         # 优先使用缓存的 base64 图片
         if image and image_cache and image in image_cache:
             img_src = image_cache[image]
-        elif image:
-            img_src = _escape_html(image)
+        # elif image:
+        #     img_src = _escape_html(image)
         else:
             img_src = ""
         img_tag = (
-            f'<img class="detail-img" src="{img_src}" '
-            f'alt="{_escape_html(name)}" onerror="this.style.display=\'none\'">'
+            f'<img class="detail-img" src="{img_src}" alt="{_escape_html(name)}" onerror="this.style.display=\'none\'">'
             if img_src
             else '<div class="detail-img" style="height:200px"></div>'
         )
