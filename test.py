@@ -1620,12 +1620,12 @@ async def test_format_booking_edge_cases() -> None:
     print("  _format_booking 边界测试完成")
 
 # ============================================================================
-# 测试用例: /抽猫娘 Command 静态验证
+# 测试用例: /猫娘占卜 Command 静态验证
 # ============================================================================
 
 async def test_draw_maid_command_static() -> None:
-    """测试 /抽猫娘 Command 方法存在且基本结构正确"""
-    print_section("测试 /抽猫娘 Command")
+    """测试 /猫娘占卜 Command（默认从全部女仆中抽取，含今日休息）"""
+    print_section("测试 /猫娘占卜 Command")
 
     # 验证方法存在
     assert_true(hasattr(SukiBookingPlugin, "handle_draw_maid"), "handle_draw_maid 方法存在")
@@ -1636,7 +1636,7 @@ async def test_draw_maid_command_static() -> None:
     assert_true(method is not None, "插件实例上有 handle_draw_maid")
     assert_true(callable(method), "handle_draw_maid 可调用")
 
-    # 验证 /抽猫娘 从禁用=false 的女仆中选择（通过数据工厂验证逻辑）
+    # 验证 /猫娘占卜 从全部女仆中随机（不再过滤 disabled）
     from random import seed
 
     seed(42)  # 固定种子确保可重复
@@ -1645,12 +1645,47 @@ async def test_draw_maid_command_static() -> None:
         {"name": "抽B", "image": "", "disabled": True, "tags": [], "signature": ""},
         {"name": "抽C", "image": "", "disabled": False, "tags": [], "signature": ""},
     ]
-    active = [m for m in test_maids if not m.get("disabled")]
-    assert_equal(len(active), 2, "两女仆未禁用")
-    assert_in("抽A", [m["name"] for m in active], "抽A 在活跃列表中")
-    assert_not_in("抽B", [m["name"] for m in active], "抽B (disabled) 不在活跃列表")
+    import random
+    chosen = random.choice(test_maids)
+    # seed(42) + choice 在 seed(42) 后第一个 choice 是 "抽C"（可验证）
+    print(f"  seed(42) 抽中: {chosen['name']}")
 
-    print("  /抽猫娘 静态验证完成")
+    print("  /猫娘占卜 静态验证完成")
+
+# ============================================================================
+# 测试用例: Tool draw_suki_maid 参数逻辑
+# ============================================================================
+
+
+async def test_tool_draw_maid_static() -> None:
+    """测试 Tool draw_suki_maid 的 include_disabled 参数逻辑"""
+    print_section("测试 Tool draw_suki_maid")
+
+    # 验证方法存在
+    assert_true(hasattr(SukiBookingPlugin, "handle_tool_draw_maid"), "handle_tool_draw_maid 方法存在")
+
+    plugin = create_plugin()
+    method = getattr(plugin, "handle_tool_draw_maid", None)
+    assert_true(method is not None, "插件实例上有 handle_tool_draw_maid")
+    assert_true(callable(method), "handle_tool_draw_maid 可调用")
+
+    # 验证候选池过滤逻辑（静态）
+    test_maids = [
+        {"name": "A", "image": "", "disabled": False, "tags": [], "signature": ""},
+        {"name": "B", "image": "", "disabled": True, "tags": [], "signature": ""},
+    ]
+
+    # include_disabled=True -> 全部女仆
+    candidates_all = test_maids
+    assert_equal(len(candidates_all), 2, "include_disabled=true 包含全部 2 位")
+
+    # include_disabled=False -> 只取未禁用的
+    candidates_active = [m for m in test_maids if not m.get("disabled")]
+    assert_equal(len(candidates_active), 1, "include_disabled=false 只包含 1 位可用")
+    assert_equal(candidates_active[0]["name"], "A", "只选到未禁用的 A")
+
+    print("  Tool draw_suki_maid 静态验证完成")
+
 
 # ============================================================================
 # 测试用例: 详情页签名空值处理
@@ -1811,8 +1846,11 @@ async def run_tests(args: argparse.Namespace) -> bool:
         # 详情页签名处理
         await test_detail_signature_variations()
 
-        # /抽猫娘 静态验证
+        # /猫娘占卜 静态验证
         await test_draw_maid_command_static()
+
+        # draw_suki_maid Tool
+        await test_tool_draw_maid_static()
 
         # 预约记录排序
         await test_reservation_sorting_in_single_column()

@@ -885,15 +885,14 @@ class SukiBookingPlugin(MaiBotPlugin):
 
         item = items[0]
         maids = item.get("maids", []) or []
-        active_maids = [m for m in maids if not m.get("disabled")]
 
-        if not active_maids:
-            await self.ctx.send.text("当前没有可抽取的女仆。", stream_id)
-            return True, "无可用女仆", 1
+        if not maids:
+            await self.ctx.send.text("当前没有女仆数据。", stream_id)
+            return True, "无女仆数据", 1
 
-        chosen = random.choice(active_maids)
+        chosen = random.choice(maids)
         maid_name = chosen.get("name", "")
-        self.ctx.logger.info("Command /猫娘占卜: 抽中「%s」", maid_name)
+        self.ctx.logger.info("Command /猫娘占卜: 抽中「%s」（disabled=%s）", maid_name, chosen.get("disabled", False))
 
         html = self._generate_maid_detail_html(item, maid_name, self._image_cache_hd)
         image_base64 = await self._render_and_send_png(html, stream_id)
@@ -907,6 +906,93 @@ class SukiBookingPlugin(MaiBotPlugin):
             formatted = self._format_booking(items)
             await self.ctx.send.text(formatted, stream_id)
             return True, f"抽取成功: {maid_name}（文本降级）", 1
+
+    # ── Tool: 随机抽取女仆 ─────────────────────────────────────────────
+
+    @Tool(
+        "draw_suki_maid",
+        description=(
+            "从 Suki 猫娘咖啡厅随机抽取(也就是占卜的意思）一位女仆，返回其预约详情。"
+            "默认从全部女仆（含今日休息）中抽取；"
+            "设置 include_disabled=false 则只从可接单女仆中抽取。"
+            "建议先调用 list_suki_maids 工具查看可用女仆范围。若用户明确要求或可接单女仆小于6人或预约关闭，则从全部女仆范围中抽取"
+        ),
+        parameters=[
+            ToolParameterInfo(
+                name="include_disabled",
+                param_type=ToolParamType.BOOLEAN,
+                description="是否包含今日休息的女仆。默认 true（全部女仆均可被抽到），设为 false 则只抽可接单的",
+                required=False,
+                default=True,
+            ),
+            ToolParameterInfo(
+                name="limit",
+                param_type=ToolParamType.INTEGER,
+                description="API 查询返回记录数量上限，默认 1",
+                required=False,
+                default=1,
+            ),
+        ],
+    )
+    async def handle_tool_draw_maid(self, include_disabled: bool = True, limit: int = 1, **kwargs):
+        """AI 工具调用：随机抽取女仆并返回详情 PNG 图片"""
+        stream_id: str = kwargs.get("stream_id", "")
+        self.ctx.logger.info("Tool draw_suki_maid 被调用: include_disabled=%s, limit=%d", include_disabled, limit)
+
+        data = await self._fetch_booking(limit=limit)
+        if data is None:
+            self.ctx.logger.warning("Tool draw_suki_maid: 数据获取失败")
+            return {"success": False, "content": "查询失败，请稍后重试。"}
+
+        items: list = data if isinstance(data, list) else [data]
+        if not items:
+            return {"success": False, "content": "暂无女仆数据。"}
+
+        item = items[0]
+        maids = item.get("maids", []) or []
+
+        # 根据参数过滤候选池
+        if include_disabled:
+            candidates = maids
+        else:
+            candidates = [m for m in maids if not m.get("disabled")]
+
+        if not candidates:
+            desc = "当前没有符合条件可抽取的女仆"
+            return {"success": True, "content": desc}
+
+        chosen = random.choice(candidates)
+        maid_name = chosen.get("name", "")
+        self.ctx.logger.info("Tool draw_suki_maid: 抽中「%s」（disabled=%s）", maid_name, chosen.get("disabled", False))
+
+        html = self._generate_maid_detail_html(item, maid_name, self._image_cache_hd)
+        desc = f"已抽取女仆「{maid_name}」并生成预约详情图片"
+
+        # 尝试渲染并发送 PNG
+        image_base64 = None
+        if stream_id:
+            image_base64 = await self._render_and_send_png(html, stream_id)
+
+        if image_base64:
+            self.ctx.logger.info("Tool draw_suki_maid: 图片生成并发送成功")
+            return {
+                "success": True,
+                "content": desc,
+                "content_items": [
+                    {
+                        "type": "image",
+                        "data": image_base64,
+                        "mime_type": "image/png",
+                        "name": "suki_maid_draw.png",
+                        "description": desc,
+                    }
+                ],
+            }
+        else:
+            # 降级：返回文本
+            self.ctx.logger.warning("Tool draw_suki_maid: 图片渲染失败，降级为文本")
+            formatted = self._format_booking(items)
+            return {"success": True, "content": formatted}
 
 
 # ── HTML 转义 ────────────────────────────────────────────────────────
