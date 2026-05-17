@@ -1,9 +1,9 @@
 """Suki 预约查询插件 - 从 Supabase 获取预约数据，以 HTML 渲染 PNG 图片形式回复用户"""
 
-import random
 import hashlib
 import io
 import os
+import random
 from base64 import b64encode
 from datetime import datetime, timezone
 
@@ -42,9 +42,6 @@ def _load_css(width: int) -> str:
         with open(css_path, "r", encoding="utf-8") as f:
             _CSS_CACHE[width] = f.read().replace("{width}", str(width))
     return _CSS_CACHE[width]
-
-
-
 
 
 class SukiBookingPlugin(MaiBotPlugin):
@@ -865,21 +862,19 @@ class SukiBookingPlugin(MaiBotPlugin):
             await self.ctx.send.text(formatted, stream_id)
             return True, "查询成功（文本降级）", 1
 
+    # ── Command: /猫娘占卜 ──────────────────────────────────────────────
 
-
-    # ── Command: /抽猫娘 ──────────────────────────────────────────────
-
-    @Command("draw_maid", pattern=r"^/抽猫娘")
+    @Command("draw_maid", pattern=r"^/猫娘占卜")
     async def handle_draw_maid(self, **kwargs):
         """随机抽取一位女仆并展示详情 PNG 图片"""
         stream_id: str = kwargs["stream_id"]
-        self.ctx.logger.info("Command /抽猫娘 被触发，stream_id=%s", stream_id)
+        self.ctx.logger.info("Command /猫娘占卜 被触发，stream_id=%s", stream_id)
 
-        await self.ctx.send.text("🎲 正在抽取猫娘...", stream_id)
+        await self.ctx.send.text("🔮 正在为你占卜猫娘...", stream_id)
 
         data = await self._fetch_booking()
         if data is None:
-            self.ctx.logger.warning("Command /抽猫娘: 数据获取失败")
+            self.ctx.logger.warning("Command /猫娘占卜: 数据获取失败")
             await self.ctx.send.text("❌ 查询失败，请稍后重试。", stream_id)
             return False, "查询失败", 1
 
@@ -898,20 +893,21 @@ class SukiBookingPlugin(MaiBotPlugin):
 
         chosen = random.choice(active_maids)
         maid_name = chosen.get("name", "")
-        self.ctx.logger.info("Command /抽猫娘: 抽中「%s」", maid_name)
+        self.ctx.logger.info("Command /猫娘占卜: 抽中「%s」", maid_name)
 
         html = self._generate_maid_detail_html(item, maid_name, self._image_cache_hd)
         image_base64 = await self._render_and_send_png(html, stream_id)
 
         if image_base64:
-            self.ctx.logger.info("Command /抽猫娘: PNG 图片发送成功")
+            self.ctx.logger.info("Command /猫娘占卜: PNG 图片发送成功")
             return True, f"抽取成功: {maid_name}（图片）", 1
         else:
             # 降级为文本
-            self.ctx.logger.warning("Command /抽猫娘: 图片渲染失败，降级为文本")
+            self.ctx.logger.warning("Command /猫娘占卜: 图片渲染失败，降级为文本")
             formatted = self._format_booking(items)
             await self.ctx.send.text(formatted, stream_id)
             return True, f"抽取成功: {maid_name}（文本降级）", 1
+
 
 # ── HTML 转义 ────────────────────────────────────────────────────────
 
