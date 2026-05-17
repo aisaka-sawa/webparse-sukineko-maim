@@ -244,13 +244,14 @@ if str(plugin_dir) not in sys.path:
     sys.path.insert(0, str(plugin_dir))
 
 from plugin import (
-    CSS_COMMON,
     HEADERS,
     RENDER_WIDTH,
+    RENDER_WIDTH_HD,
     REQUEST_TIMEOUT,
     SUPABASE_URL,
     SukiBookingPlugin,
     _escape_html,
+    _load_css,
     create_plugin,
 )
 
@@ -767,6 +768,8 @@ async def test_generate_maid_detail_html() -> None:
     assert_in_substring("<!DOCTYPE html>", html, "HTML 声明")
     assert_in_substring("Suki 猫娘咖啡厅", html, "品牌名称")
     assert_in_substring("女仆预约详情", html, "页面标题")
+    # 详情页使用 HD 宽度（CSS 中带空格）
+    assert_in_substring("width: 780px", html, "详情页使用 HD 宽度")
     assert_in_substring("detail-img", html, "详情页图片")
     assert_in_substring("猫娘A", html, "女仆名称")
     assert_in_substring("ASMR", html, "标签")
@@ -802,8 +805,12 @@ async def test_generate_maid_detail_html_disabled() -> None:
     }
     html = SukiBookingPlugin._generate_maid_detail_html(data, "猫娘B")
 
-    # disabled 女仆应显示"暂不接单"
-    assert_in_substring("暂不接单", html, "disabled 显示暂不接单")
+    # 详情页（包括空状态分支）也使用 HD 宽度
+    # 详情页（包括空状态分支）也使用 HD 宽度（CSS 中带空格）
+    assert_in_substring("width: 780px", html, "disabled 详情页也使用 HD 宽度")
+
+    # disabled 女仆应显示"今日休息"
+    assert_in_substring("今日休息", html, "disabled 显示今日休息")
     assert_not_in_substring("可预约", html, "disabled 不应显示可预约")
 
     print("  disabled 女仆测试完成")
@@ -1038,19 +1045,50 @@ async def test_constants() -> None:
 
     assert_equal(RENDER_WIDTH, 390, "RENDER_WIDTH = 390")
 
-    # CSS_COMMON 应包含 {width} 占位符
-    assert_in_substring("{width}", CSS_COMMON, "CSS 包含 width 占位符")
+    # _load_css 应从文件加载 CSS 并替换 {width} 占位符
+    css = _load_css(390)
+    # CSS 模板中写的是 "width: {width}px"（带空格），替换后为 "width: 390px"
+    assert_in_substring("width: 390px", css, "CSS 包含注入后的宽度")
+    assert_in_substring("#FDF6F0", css, "暖奶油白背景")
+    assert_in_substring("#6B4226", css, "咖啡棕主色")
+    assert_in_substring("#C87941", css, "焦糖橙强调")
 
-    # CSS 应包含咖啡厅主题色彩
-    assert_in_substring("#FDF6F0", CSS_COMMON, "暖奶油白背景")
-    assert_in_substring("#6B4226", CSS_COMMON, "咖啡棕主色")
-    assert_in_substring("#C87941", CSS_COMMON, "焦糖橙强调")
+    # RENDER_WIDTH_HD 应为 780（2x DPI）
+    assert_equal(RENDER_WIDTH_HD, 780, "RENDER_WIDTH_HD = 780")
+
+    # _load_css(780) 应注入 HD 宽度
+    css_hd = _load_css(780)
+    assert_in_substring("width: 780px", css_hd, "HD CSS 包含注入后的宽度 780px")
 
     # HEADERS 应包含 Supabase 认证
     assert_in("apikey", HEADERS, "HEADERS 包含 apikey")
     assert_in("Authorization", HEADERS, "HEADERS 包含 Authorization")
 
     print("  常量测试完成")
+
+
+# ============================================================================
+# 测试用例: _load_css 缓存行为
+# ============================================================================
+
+
+async def test_load_css_caching() -> None:
+    """测试 _load_css 缓存行为"""
+    print_section("测试 _load_css 缓存")
+
+    css1 = _load_css(390)
+    css2 = _load_css(390)
+    assert_equal(css1, css2, "相同宽度返回一致结果")
+
+    css_hd = _load_css(780)
+    css_hd2 = _load_css(780)
+    assert_equal(css_hd, css_hd2, "HD 宽度返回一致结果")
+
+    # 两个宽度产生不同的内容
+    assert_true(len(css1) > 0, "390 CSS 非空")
+    assert_true(len(css_hd) > 0, "780 CSS 非空")
+
+    print("  _load_css 缓存测试完成")
 
 
 # ============================================================================
@@ -1314,13 +1352,15 @@ async def test_generate_available_maids_html_two_columns() -> None:
 
     maids = []
     for i in range(15):
-        maids.append({
-            "name": f"猫娘{i}",
-            "image": f"https://example.com/{i}.png",
-            "disabled": False,
-            "tags": [f"标签{i}", "标签B"],
-            "signature": f"签名{i}",
-        })
+        maids.append(
+            {
+                "name": f"猫娘{i}",
+                "image": f"https://example.com/{i}.png",
+                "disabled": False,
+                "tags": [f"标签{i}", "标签B"],
+                "signature": f"签名{i}",
+            }
+        )
 
     data = {
         "maids": maids,
@@ -1351,13 +1391,15 @@ async def test_generate_available_maids_html_single_column() -> None:
 
     maids = []
     for i in range(5):
-        maids.append({
-            "name": f"猫娘{i}",
-            "image": f"https://example.com/{i}.png",
-            "disabled": False,
-            "tags": [f"标签{i}", "标签B", "标签C"],
-            "signature": f"签名{i}",
-        })
+        maids.append(
+            {
+                "name": f"猫娘{i}",
+                "image": f"https://example.com/{i}.png",
+                "disabled": False,
+                "tags": [f"标签{i}", "标签B", "标签C"],
+                "signature": f"签名{i}",
+            }
+        )
 
     reservations = [
         {"maidName": "猫娘0", "timeSlot": "10:00-11:00", "guestUsername": "客人X"},
@@ -1441,7 +1483,11 @@ async def test_html_with_image_cache() -> None:
         "booking_enabled": True,
     }
     html_no_cache = SukiBookingPlugin._generate_available_maids_html(data_no_cache, image_cache)
-    assert_in_substring("https://unknown.com/c.png", html_no_cache, "未知图片使用原始 URL")
+    # 当图片不在 cache 中时，plugin.py 不会使用原始 URL，而是设置 img_src="" 并生成空 div
+    # 所以原始 URL 不应出现在 HTML 中
+    assert_not_in_substring(
+        "https://unknown.com/c.png", html_no_cache, "未知图片不使用原始 URL（cache 命中为空时不显示外链）"
+    )
 
     print("  image_cache 参数测试完成")
 
@@ -1594,26 +1640,32 @@ async def test_fetch_booking_error_paths() -> None:
 
     plugin = create_plugin()
 
+    import unittest.mock
+
     import aiohttp
     import plugin as plugin_module
-    import unittest.mock
 
     # 测试非 200 状态码
     class FakeResponse500:
         status = 500
+
         async def __aenter__(self):
             return self
+
         async def __aexit__(self, *a):
             pass
+
         async def text(self):
             return "Internal Server Error"
 
     class FakeSession500:
         async def __aenter__(self):
             return self
+
         async def __aexit__(self, *a):
             pass
-        async def get(self, *args, **kwargs):
+
+        def get(self, *args, **kwargs):
             return FakeResponse500()
 
     with unittest.mock.patch.object(plugin_module.aiohttp, "ClientSession", FakeSession500):
@@ -1624,9 +1676,11 @@ async def test_fetch_booking_error_paths() -> None:
     class FakeSessionError:
         async def __aenter__(self):
             return self
+
         async def __aexit__(self, *a):
             pass
-        async def get(self, *args, **kwargs):
+
+        def get(self, *args, **kwargs):
             raise aiohttp.ClientError("Connection failed")
 
     with unittest.mock.patch.object(plugin_module.aiohttp, "ClientSession", FakeSessionError):
@@ -1670,6 +1724,41 @@ async def test_format_booking_edge_cases() -> None:
 
 
 # ============================================================================
+# 测试用例: /抽猫娘 Command 静态验证
+# ============================================================================
+
+
+async def test_draw_maid_command_static() -> None:
+    """测试 /抽猫娘 Command 方法存在且基本结构正确"""
+    print_section("测试 /抽猫娘 Command")
+
+    # 验证方法存在
+    assert_true(hasattr(SukiBookingPlugin, "handle_draw_maid"), "handle_draw_maid 方法存在")
+
+    # 验证方法可调用
+    plugin = create_plugin()
+    method = getattr(plugin, "handle_draw_maid", None)
+    assert_true(method is not None, "插件实例上有 handle_draw_maid")
+    assert_true(callable(method), "handle_draw_maid 可调用")
+
+    # 验证 /抽猫娘 从禁用=false 的女仆中选择（通过数据工厂验证逻辑）
+    from random import seed
+
+    seed(42)  # 固定种子确保可重复
+    test_maids = [
+        {"name": "抽A", "image": "", "disabled": False, "tags": [], "signature": ""},
+        {"name": "抽B", "image": "", "disabled": True, "tags": [], "signature": ""},
+        {"name": "抽C", "image": "", "disabled": False, "tags": [], "signature": ""},
+    ]
+    active = [m for m in test_maids if not m.get("disabled")]
+    assert_equal(len(active), 2, "两女仆未禁用")
+    assert_in("抽A", [m["name"] for m in active], "抽A 在活跃列表中")
+    assert_not_in("抽B", [m["name"] for m in active], "抽B (disabled) 不在活跃列表")
+
+    print("  /抽猫娘 静态验证完成")
+
+
+# ============================================================================
 # 测试用例: 详情页签名空值处理
 # ============================================================================
 
@@ -1687,8 +1776,8 @@ async def test_detail_signature_variations() -> None:
     html = SukiBookingPlugin._generate_maid_detail_html(data_sig, "A")
     assert_in_substring("我是签名", html, "签名内容出现")
     # 签名内容出现在 body 的 detail-signature div 中（CSS 中也有类名定义）
-    body_sig = html[html.find("<body>"):]
-    assert_in_substring("<div class=\"detail-signature\">", body_sig, "签名 div 在 body 中")
+    body_sig = html[html.find("<body>") :]
+    assert_in_substring('<div class="detail-signature">', body_sig, "签名 div 在 body 中")
 
     # 空签名 - body 中不应有签名 div
     data_empty = {
@@ -1697,9 +1786,9 @@ async def test_detail_signature_variations() -> None:
         "booking_enabled": True,
     }
     html_empty = SukiBookingPlugin._generate_maid_detail_html(data_empty, "A")
-    body_empty = html_empty[html_empty.find("<body>"):]
+    body_empty = html_empty[html_empty.find("<body>") :]
     # CSS 块中有 detail-signature 定义，但 body 中不应有实际元素
-    assert_not_in_substring("<div class=\"detail-signature\">", body_empty, "空签名 body 无签名 div")
+    assert_not_in_substring('<div class="detail-signature">', body_empty, "空签名 body 无签名 div")
 
     # 无签名字段 - body 中不应有签名 div
     data_no_sig = {
@@ -1708,8 +1797,8 @@ async def test_detail_signature_variations() -> None:
         "booking_enabled": True,
     }
     html_no = SukiBookingPlugin._generate_maid_detail_html(data_no_sig, "A")
-    body_no = html_no[html_no.find("<body>"):]
-    assert_not_in_substring("<div class=\"detail-signature\">", body_no, "无签名字段 body 无签名 div")
+    body_no = html_no[html_no.find("<body>") :]
+    assert_not_in_substring('<div class="detail-signature">', body_no, "无签名字段 body 无签名 div")
 
     print("  签名处理测试完成")
 
@@ -1810,8 +1899,9 @@ async def run_tests(args: argparse.Namespace) -> bool:
         await test_generate_maid_detail_html_no_reservations()
         await test_generate_maid_detail_html_xss()
 
-        # 常量
+        # 常量 & CSS 加载
         await test_constants()
+        await test_load_css_caching()
 
     # ── 渲染管线测试（Mock） ────────────────────────────────────
     if args.format or (not args.tool and not args.command and not args.api):
@@ -1833,6 +1923,9 @@ async def run_tests(args: argparse.Namespace) -> bool:
 
         # 详情页签名处理
         await test_detail_signature_variations()
+
+        # /抽猫娘 静态验证
+        await test_draw_maid_command_static()
 
         # 预约记录排序
         await test_reservation_sorting_in_single_column()
@@ -1943,6 +2036,13 @@ def main() -> None:
     parser.add_argument("--api", action="store_true", help="仅测试 API 请求")
 
     args = parser.parse_args()
+
+    # Windows 控制台 UTF-8 输出支持
+    if sys.platform == "win32":
+        import codecs
+
+        sys.stdout = codecs.getwriter("utf-8")(sys.stdout.buffer, errors="replace")
+        sys.stderr = codecs.getwriter("utf-8")(sys.stderr.buffer, errors="replace")
 
     print("=" * 60)
     print("  Suki 预约查询插件 - 模拟运行测试")

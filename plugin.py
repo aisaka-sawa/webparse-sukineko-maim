@@ -1,5 +1,6 @@
 """Suki 预约查询插件 - 从 Supabase 获取预约数据，以 HTML 渲染 PNG 图片形式回复用户"""
 
+import random
 import hashlib
 import io
 import os
@@ -30,298 +31,23 @@ REQUEST_TIMEOUT = 10
 # HTML 渲染宽度（iPhone 14 竖屏 CSS 像素宽度）
 RENDER_WIDTH = 390
 
-# ── HTML CSS 常量（咖啡厅主题） ──────────────────────────────────────
-CSS_COMMON = """
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    width: {width}px;
-    font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
-                 "Noto Sans SC", sans-serif;
-    background: #FDF6F0;
-    color: #4A3728;
-    padding: 16px 12px 20px;
-    line-height: 1.4;
-  }
-  .header {
-    text-align: center;
-    margin-bottom: 14px;
-    padding-bottom: 10px;
-    border-bottom: 1.5px solid #E8D5C4;
-  }
-  .header .brand {
-    font-size: 18px;
-    font-weight: 700;
-    color: #6B4226;
-  }
-  .header .stats {
-    font-size: 11px;
-    color: #8B7355;
-    margin-top: 4px;
-  }
-  .header .stats .stat-em {
-    color: #6B4226;
-    font-weight: 600;
-  }
+# HTML 渲染宽度（详情页 2x，提升 DPI）
+RENDER_WIDTH_HD = 780
 
-  /* ── 双栏网格 ── */
-  .grid-2col {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-  }
+# ── CSS 加载（从 static/style.css 读取，按宽度缓存） ─────────────────
+_CSS_CACHE: dict[int, str] = {}
 
-  /* ── 单栏卡片 ── */
-  .card {
-    background: #FFFFFF;
-    border-radius: 12px;
-    padding: 10px;
-    margin-bottom: 10px;
-    box-shadow: 0 1px 6px rgba(107,66,38,0.06);
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-  }
-  .card-img-single {
-    width: 96px;
-    height: 72px;
-    border-radius: 8px;
-    object-fit: cover;
-    flex-shrink: 0;
-    background: #F0E6DA;
-  }
-  .card-info {
-    flex: 1;
-    min-width: 0;
-  }
-  .card-name {
-    font-size: 14px;
-    font-weight: 700;
-    color: #4A3728;
-    margin-bottom: 2px;
-  }
-  .card-tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 3px;
-    margin-bottom: 4px;
-  }
-  .card-tag {
-    font-size: 9px;
-    padding: 1px 6px;
-    border-radius: 6px;
-    background: #F5EDE3;
-    color: #8B7355;
-    white-space: nowrap;
-  }
-  .card-badge {
-    flex-shrink: 0;
-    margin-top: 16px;
-  }
 
-  /* ── 预约槽位行 ── */
-  .slot-row {
-    font-size: 11px;
-    padding: 2px 4px;
-    border-radius: 4px;
-    margin-top: 2px;
-  }
-  .slot-occupied {
-    color: #8B7355;
-    background: #F5F0EB;
-  }
-  .slot-free {
-    color: #388E3C;
-    background: #E8F5E9;
-    font-weight: 500;
-  }
+def _load_css(width: int) -> str:
+    """读取 CSS 文件并替换 {width} 占位符，按宽度缓存"""
+    if width not in _CSS_CACHE:
+        css_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "style.css")
+        with open(css_path, "r", encoding="utf-8") as f:
+            _CSS_CACHE[width] = f.read().replace("{width}", str(width))
+    return _CSS_CACHE[width]
 
-  /* ── 双栏卡片 ── */
-  .card-2col {
-    background: #FFFFFF;
-    border-radius: 10px;
-    padding: 8px;
-    box-shadow: 0 1px 4px rgba(107,66,38,0.06);
-    display: flex;
-    align-items: flex-start;
-    gap: 6px;
-  }
-  .card-img-2col {
-    width: 48px;
-    height: 48px;
-    border-radius: 6px;
-    object-fit: cover;
-    flex-shrink: 0;
-    background: #F0E6DA;
-  }
-  .card-2col .card-name {
-    font-size: 13px;
-  }
-  .card-2col .card-tag {
-    font-size: 7px;
-    padding: 1px 4px;
-  }
-  .card-2col .card-badge {
-    margin-top: 6px;
-  }
 
-  /* ── 徽章 ── */
-  .badge-avail {
-    font-size: 10px;
-    padding: 2px 8px;
-    border-radius: 8px;
-    background: #E8F5E9;
-    color: #388E3C;
-    font-weight: 600;
-    white-space: nowrap;
-  }
-  .badge-booked {
-    font-size: 10px;
-    padding: 2px 8px;
-    border-radius: 8px;
-    background: #FFF3E0;
-    color: #E65100;
-    font-weight: 600;
-    white-space: nowrap;
-  }
-  .badge-full {
-    font-size: 10px;
-    padding: 2px 8px;
-    border-radius: 8px;
-    background: #FFEBEE;
-    color: #C62828;
-    font-weight: 600;
-    white-space: nowrap;
-  }
-  .badge-closed {
-    font-size: 10px;
-    padding: 2px 8px;
-    border-radius: 8px;
-    background: #F5F5F5;
-    color: #9E9E9E;
-    font-weight: 600;
-    white-space: nowrap;
-  }
 
-  /* ── 空状态 / 页脚 ── */
-  .empty-state {
-    text-align: center;
-    padding: 36px 16px;
-    color: #A08C7A;
-    font-size: 13px;
-  }
-  .footer {
-    text-align: center;
-    margin-top: 14px;
-    padding-top: 10px;
-    border-top: 1px solid #E8D5C4;
-    font-size: 10px;
-    color: #B8A590;
-  }
-
-  /* ── 详情页样式 ── */
-  .subtitle {
-    font-size: 13px;
-    color: #8B7355;
-    margin-top: 4px;
-  }
-  .status-tag {
-    display: inline-block;
-    margin-top: 8px;
-    padding: 3px 14px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: 600;
-  }
-  .status-open {
-    background: #E8F5E9;
-    color: #2E7D32;
-  }
-  .status-closed {
-    background: #FFEBEE;
-    color: #C62828;
-  }
-  .status-full {
-    background: #FFEBEE;
-    color: #C62828;
-  }
-  .maid-disabled-tag {
-    display: inline-block;
-    margin-top: 8px;
-    padding: 3px 14px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: 600;
-    background: #F5F5F5;
-    color: #9E9E9E;
-  }
-  .detail-img-wrap {
-    text-align: center;
-    margin-bottom: 16px;
-  }
-  .detail-img {
-    width: 100%;
-    max-height: 280px;
-    border-radius: 14px;
-    object-fit: cover;
-    background: #F0E6DA;
-  }
-  .detail-header {
-    text-align: center;
-    margin-bottom: 18px;
-  }
-  .detail-name {
-    font-size: 22px;
-    font-weight: 700;
-    color: #6B4226;
-  }
-  .detail-tags {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 6px;
-    margin-top: 8px;
-  }
-  .detail-tag {
-    font-size: 11px;
-    padding: 3px 10px;
-    border-radius: 10px;
-    background: #F5EDE3;
-    color: #8B7355;
-  }
-  .detail-signature {
-    font-size: 13px;
-    color: #A08C7A;
-    margin-top: 6px;
-    text-align: center;
-  }
-  .section-title {
-    font-size: 14px;
-    font-weight: 600;
-    color: #6B4226;
-    margin-bottom: 10px;
-    padding-left: 4px;
-    border-left: 3px solid #C87941;
-  }
-  .resv-card {
-    background: #FFFFFF;
-    border-radius: 12px;
-    padding: 12px 14px;
-    margin-bottom: 10px;
-    box-shadow: 0 1px 4px rgba(107,66,38,0.06);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  .resv-time {
-    font-size: 14px;
-    font-weight: 600;
-    color: #4A3728;
-  }
-  .resv-guest {
-    font-size: 12px;
-    color: #8B7355;
-  }
-"""
 
 
 class SukiBookingPlugin(MaiBotPlugin):
@@ -770,7 +496,7 @@ class SukiBookingPlugin(MaiBotPlugin):
         )
 
         now_str = datetime.now(timezone.utc).strftime("%Y/%m/%d %H:%M")
-        css = CSS_COMMON.replace("{width}", str(RENDER_WIDTH))
+        css = _load_css(RENDER_WIDTH)
 
         cards_container = f'<div class="grid-2col">{cards_html}</div>' if use_two_col else cards_html
 
@@ -818,7 +544,7 @@ class SukiBookingPlugin(MaiBotPlugin):
                 break
 
         if target is None:
-            css = CSS_COMMON.replace("{width}", str(RENDER_WIDTH))
+            css = _load_css(RENDER_WIDTH_HD)
             return f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head><meta charset="utf-8"><style>{css}</style></head>
@@ -849,7 +575,7 @@ class SukiBookingPlugin(MaiBotPlugin):
 
         # 状态标签
         if disabled:
-            status_html = '<span class="maid-disabled-tag">暂不接单</span>'
+            status_html = '<span class="maid-disabled-tag">今日休息</span>'
         elif not booking_enabled:
             status_html = '<span class="status-tag status-closed">预约已关闭</span>'
         elif len(maid_reservations) >= 2:
@@ -888,13 +614,13 @@ class SukiBookingPlugin(MaiBotPlugin):
 
         now_str = datetime.now(timezone.utc).strftime("%Y/%m/%d %H:%M")
 
-        css = CSS_COMMON.replace("{width}", str(RENDER_WIDTH))
+        css = _load_css(RENDER_WIDTH_HD)
 
         return f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width={RENDER_WIDTH}">
+<meta name="viewport" content="width={RENDER_WIDTH_HD}">
 <style>{css}</style>
 </head>
 <body>
@@ -1142,6 +868,53 @@ class SukiBookingPlugin(MaiBotPlugin):
             await self.ctx.send.text(formatted, stream_id)
             return True, "查询成功（文本降级）", 1
 
+
+
+    # ── Command: /抽猫娘 ──────────────────────────────────────────────
+
+    @Command("draw_maid", pattern=r"^/抽猫娘")
+    async def handle_draw_maid(self, **kwargs):
+        """随机抽取一位女仆并展示详情 PNG 图片"""
+        stream_id: str = kwargs["stream_id"]
+        self.ctx.logger.info("Command /抽猫娘 被触发，stream_id=%s", stream_id)
+
+        await self.ctx.send.text("🎲 正在抽取猫娘...", stream_id)
+
+        data = await self._fetch_booking()
+        if data is None:
+            self.ctx.logger.warning("Command /抽猫娘: 数据获取失败")
+            await self.ctx.send.text("❌ 查询失败，请稍后重试。", stream_id)
+            return False, "查询失败", 1
+
+        items: list = data if isinstance(data, list) else [data]
+        if not items:
+            await self.ctx.send.text("暂无女仆数据。", stream_id)
+            return True, "暂无数据", 1
+
+        item = items[0]
+        maids = item.get("maids", []) or []
+        active_maids = [m for m in maids if not m.get("disabled")]
+
+        if not active_maids:
+            await self.ctx.send.text("当前没有可抽取的女仆。", stream_id)
+            return True, "无可用女仆", 1
+
+        chosen = random.choice(active_maids)
+        maid_name = chosen.get("name", "")
+        self.ctx.logger.info("Command /抽猫娘: 抽中「%s」", maid_name)
+
+        html = self._generate_maid_detail_html(item, maid_name, self._image_cache_hd)
+        image_base64 = await self._render_and_send_png(html, stream_id)
+
+        if image_base64:
+            self.ctx.logger.info("Command /抽猫娘: PNG 图片发送成功")
+            return True, f"抽取成功: {maid_name}（图片）", 1
+        else:
+            # 降级为文本
+            self.ctx.logger.warning("Command /抽猫娘: 图片渲染失败，降级为文本")
+            formatted = self._format_booking(items)
+            await self.ctx.send.text(formatted, stream_id)
+            return True, f"抽取成功: {maid_name}（文本降级）", 1
 
 # ── HTML 转义 ────────────────────────────────────────────────────────
 

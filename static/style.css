@@ -1,0 +1,303 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  width: {width}px;
+  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+               "Noto Sans SC", sans-serif;
+  background: #FDF6F0;
+  color: #4A3728;
+  padding: 16px 12px 20px;
+  line-height: 1.4;
+}
+.header {
+  text-align: center;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1.5px solid #E8D5C4;
+}
+.header .brand {
+  font-size: 18px;
+  font-weight: 700;
+  color: #6B4226;
+}
+.header .stats {
+  font-size: 11px;
+  color: #8B7355;
+  margin-top: 4px;
+}
+.header .stats .stat-em {
+  color: #6B4226;
+  font-weight: 600;
+}
+
+/* ── 双栏网格 ── */
+.grid-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+/* ── 单栏卡片 ── */
+.card {
+  background: #FFFFFF;
+  border-radius: 12px;
+  padding: 10px;
+  margin-bottom: 10px;
+  box-shadow: 0 1px 6px rgba(107,66,38,0.06);
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.card-img-single {
+  width: 96px;
+  height: 72px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: #F0E6DA;
+}
+.card-info {
+  flex: 1;
+  min-width: 0;
+}
+.card-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #4A3728;
+  margin-bottom: 2px;
+}
+.card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-bottom: 4px;
+}
+.card-tag {
+  font-size: 9px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: #F5EDE3;
+  color: #8B7355;
+  white-space: nowrap;
+}
+.card-badge {
+  flex-shrink: 0;
+  margin-top: 16px;
+}
+
+/* ── 预约槽位行 ── */
+.slot-row {
+  font-size: 11px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  margin-top: 2px;
+}
+.slot-occupied {
+  color: #8B7355;
+  background: #F5F0EB;
+}
+.slot-free {
+  color: #388E3C;
+  background: #E8F5E9;
+  font-weight: 500;
+}
+
+/* ── 双栏卡片 ── */
+.card-2col {
+  background: #FFFFFF;
+  border-radius: 10px;
+  padding: 8px;
+  box-shadow: 0 1px 4px rgba(107,66,38,0.06);
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+.card-img-2col {
+  width: 48px;
+  height: 48px;
+  border-radius: 6px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: #F0E6DA;
+}
+.card-2col .card-name {
+  font-size: 11px;
+  word-break: break-all;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.35;
+}
+.card-2col .card-tag {
+  font-size: 7px;
+  padding: 1px 4px;
+}
+.card-2col .card-badge {
+  margin-top: 2px;
+}
+/* 双栏模式下缩小徽章字体，为名称释放空间 */
+.card-2col .badge-avail,
+.card-2col .badge-booked,
+.card-2col .badge-full,
+.card-2col .badge-closed {
+  font-size: 8px;
+  padding: 1px 4px;
+}
+
+/* ── 徽章 ── */
+.badge-avail {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: #E8F5E9;
+  color: #388E3C;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.badge-booked {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: #FFF3E0;
+  color: #E65100;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.badge-full {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: #FFEBEE;
+  color: #C62828;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.badge-closed {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: #F5F5F5;
+  color: #9E9E9E;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ── 空状态 / 页脚 ── */
+.empty-state {
+  text-align: center;
+  padding: 36px 16px;
+  color: #A08C7A;
+  font-size: 13px;
+}
+.footer {
+  text-align: center;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid #E8D5C4;
+  font-size: 10px;
+  color: #B8A590;
+}
+
+/* ── 详情页样式 ── */
+.subtitle {
+  font-size: 13px;
+  color: #8B7355;
+  margin-top: 4px;
+}
+.status-tag {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 3px 14px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.status-open {
+  background: #E8F5E9;
+  color: #2E7D32;
+}
+.status-closed {
+  background: #FFEBEE;
+  color: #C62828;
+}
+.status-full {
+  background: #FFEBEE;
+  color: #C62828;
+}
+.maid-disabled-tag {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 3px 14px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #F5F5F5;
+  color: #9E9E9E;
+}
+.detail-img-wrap {
+  text-align: center;
+  margin-bottom: 16px;
+}
+.detail-img {
+  width: 100%;
+  max-height: 280px;
+  border-radius: 14px;
+  object-fit: cover;
+  background: #F0E6DA;
+}
+.detail-header {
+  text-align: center;
+  margin-bottom: 18px;
+}
+.detail-name {
+  font-size: 22px;
+  font-weight: 700;
+  color: #6B4226;
+}
+.detail-tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+.detail-tag {
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 10px;
+  background: #F5EDE3;
+  color: #8B7355;
+}
+.detail-signature {
+  font-size: 13px;
+  color: #A08C7A;
+  margin-top: 6px;
+  text-align: center;
+}
+.section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #6B4226;
+  margin-bottom: 10px;
+  padding-left: 4px;
+  border-left: 3px solid #C87941;
+}
+.resv-card {
+  background: #FFFFFF;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  box-shadow: 0 1px 4px rgba(107,66,38,0.06);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.resv-time {
+  font-size: 14px;
+  font-weight: 600;
+  color: #4A3728;
+}
+.resv-guest {
+  font-size: 12px;
+  color: #8B7355;
+}

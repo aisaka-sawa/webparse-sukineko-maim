@@ -41,8 +41,9 @@
 
 ## 新增常量
 
-- **`RENDER_WIDTH = 390`** — iPhone 14 竖屏 CSS 像素宽度，所有 HTML 模板以此为基准
-- **`CSS_COMMON`** — 咖啡厅主题内联样式模板，通过 `{width}` 占位符注入渲染宽度
+- **`RENDER_WIDTH = 390`** — 一览页渲染宽度（iPhone 14 竖屏）
+- **`RENDER_WIDTH_HD = 780`** — 详情页 2x 渲染宽度，提升图片 DPI
+- **`_load_css() → static/style.css`** — 咖啡厅主题内联样式模板，通过 `{width}` 占位符注入渲染宽度
 
 ## 新增方法速查
 
@@ -52,6 +53,7 @@
 | `_generate_available_maids_html(data)` | 静态 | 模板一：筛选 disabled=false 且预约数 ≤1 的女仆，生成卡片列表 HTML |
 | `_generate_maid_detail_html(data, maid_name)` | 静态 | 模板二：查找指定女仆，生成含大图、标签、签名、预约记录的详情 HTML |
 | `_render_and_send_png(html, stream_id)` | 实例 | 渲染管线：html2png → 解析结果(str/dict/bytes) → send.image |
+| `_load_css(width)` | 模块函数 | 从 static/style.css 加载 CSS，替换 {width} 占位符，按宽度缓存 |
 | `_escape_html(s)` | 模块函数 | HTML 特殊字符转义，防止 XSS |
 
 ## 两套 HTML 模板详情
@@ -96,7 +98,7 @@
 │  ┌──────────────────────────┐ │
 │  │ [女仆大图 max-h:280px]   │ │
 │  └──────────────────────────┘ │
-│  女仆名  [可预约/暂不接单/关闭] │
+│  女仆名  [可预约/今日休息/关闭] │
 │  标签1  标签2  标签3           │
 │  「签名内容」                   │
 │  ── 📋 预约记录（N 条）         │
@@ -109,7 +111,7 @@
 
 设计要点：
 - 未找到女仆时返回友好空状态（不是崩溃）
-- 状态分三层：`disabled` →「暂不接单」, 非 disabled 但 `booking_enabled=false` →「预约已关闭」, 否则 →「可预约」
+- 状态分三层：`disabled` →「今日休息」, 非 disabled 但 `booking_enabled=false` →「预约已关闭」, 否则 →「可预约」
 - 无预约记录时显示 📭 空状态
 
 ## 渲染 & 发送管线 (`_render_and_send_png`)
@@ -144,7 +146,7 @@ html2png(html)
 
 ## 色彩主题
 
-咖啡厅暖色调，全部通过 `CSS_COMMON` 内联样式定义：
+咖啡厅暖色调，全部通过 `_load_css() → static/style.css` 内联样式定义：
 
 | 用途 | 色值 | 说明 |
 |------|------|------|
@@ -170,6 +172,15 @@ html2png(html)
 **Tool description 更新：**
 - 明确告知 LLM 不指定 `maid_name` 时返回一览，指定时返回详情
 - 有助于 LLM 根据用户意图正确传参
+
+## /抽猫娘 命令
+
+| 项目 | 说明 |
+|------|------|
+| 触发 | `/抽猫娘` |
+| 逻辑 | 从 `disabled=false` 的女仆中 `random.choice`，走详情页渲染管线 |
+| DPI | 详情页统一使用 `RENDER_WIDTH_HD = 780`（2x），配合 `_image_cache_hd`（800px） |
+| 降级 | 同 `/suki`，渲染失败降级为文本 |
 
 ## 注意事项
 
