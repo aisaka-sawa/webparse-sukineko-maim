@@ -42,7 +42,6 @@
 ## 新增常量
 
 - **`RENDER_WIDTH = 390`** — 一览页渲染宽度（iPhone 14 竖屏）
-- **`RENDER_WIDTH_HD = 780`** — 详情页 2x 渲染宽度，提升图片 DPI
 - **`_load_css() → static/style.css`** — 咖啡厅主题内联样式模板，通过 `{width}` 占位符注入渲染宽度
 
 ## 新增方法速查
@@ -179,7 +178,7 @@ html2png(html)
 |------|------|
 | 触发 | `/抽猫娘` |
 | 逻辑 | 从 `disabled=false` 的女仆中 `random.choice`，走详情页渲染管线 |
-| DPI | 详情页统一使用 `RENDER_WIDTH_HD = 780`（2x），配合 `_image_cache_hd`（800px） |
+| 渲染 | 详情页与一览页统一使用 `RENDER_WIDTH = 390`，图片缓存单独区分 `_image_cache`（400px）/ `_image_cache_hd`（800px） |
 | 降级 | 同 `/suki`，渲染失败降级为文本 |
 
 ## 注意事项

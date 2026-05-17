@@ -31,9 +31,6 @@ REQUEST_TIMEOUT = 10
 # HTML 渲染宽度（iPhone 14 竖屏 CSS 像素宽度）
 RENDER_WIDTH = 390
 
-# HTML 渲染宽度（详情页 2x，提升 DPI）
-RENDER_WIDTH_HD = 780
-
 # ── CSS 加载（从 static/style.css 读取，按宽度缓存） ─────────────────
 _CSS_CACHE: dict[int, str] = {}
 
@@ -544,7 +541,7 @@ class SukiBookingPlugin(MaiBotPlugin):
                 break
 
         if target is None:
-            css = _load_css(RENDER_WIDTH_HD)
+            css = _load_css(RENDER_WIDTH)
             return f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head><meta charset="utf-8"><style>{css}</style></head>
@@ -614,13 +611,13 @@ class SukiBookingPlugin(MaiBotPlugin):
 
         now_str = datetime.now(timezone.utc).strftime("%Y/%m/%d %H:%M")
 
-        css = _load_css(RENDER_WIDTH_HD)
+        css = _load_css(RENDER_WIDTH)
 
         return f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width={RENDER_WIDTH_HD}">
+<meta name="viewport" content="width={RENDER_WIDTH}">
 <style>{css}</style>
 </head>
 <body>

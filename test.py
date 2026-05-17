@@ -31,7 +31,6 @@ logger = logging.getLogger("test")
 # Mock SDK 组件
 # ============================================================================
 
-
 class MockLogger:
     """模拟 PluginContext 中的 logger"""
 
@@ -49,7 +48,6 @@ class MockLogger:
 
     def critical(self, msg: str, *args: Any) -> None:
         logger.critical(f"[plugin] {msg}", *args)
-
 
 class MockSend:
     """模拟 ctx.send - 消息发送代理"""
@@ -75,7 +73,6 @@ class MockSend:
 
     def reset(self) -> None:
         self.sent_messages.clear()
-
 
 class MockRender:
     """模拟 ctx.render - 渲染代理"""
@@ -107,7 +104,6 @@ class MockRender:
         self.last_kwargs = {}
         self._raise_exception = None
 
-
 class MockContext:
     """模拟 PluginContext"""
 
@@ -130,7 +126,6 @@ class MockContext:
         self.tool = None
         self.knowledge = None
 
-
 class MockToolParameterInfo:
     """模拟 ToolParameterInfo"""
 
@@ -149,7 +144,6 @@ class MockToolParameterInfo:
         self.required = required
         self.default = default
 
-
 class MockToolParamType:
     """模拟 ToolParamType 枚举"""
 
@@ -161,11 +155,9 @@ class MockToolParamType:
     ARRAY = "array"
     OBJECT = "object"
 
-
 # ============================================================================
 # Mock maibot_sdk 模块 - 拦截 import
 # ============================================================================
-
 
 class MockMaiBotPlugin:
     """模拟 MaiBotPlugin 基类"""
@@ -186,7 +178,6 @@ class MockMaiBotPlugin:
     async def on_config_update(self, scope: str, config_data: dict, version: str) -> None:
         pass
 
-
 def MockTool(name: str, description: str = "", parameters: Any = None, **kwargs: Any):
     """模拟 @Tool 装饰器 - 记录工具定义并返回原始函数"""
 
@@ -201,7 +192,6 @@ def MockTool(name: str, description: str = "", parameters: Any = None, **kwargs:
         return wrapper
 
     return decorator
-
 
 def MockCommand(name: str, pattern: str = "", description: str = "", aliases: list[str] | None = None, **kwargs: Any):
     """模拟 @Command 装饰器 - 记录命令定义并返回原始函数"""
@@ -218,7 +208,6 @@ def MockCommand(name: str, pattern: str = "", description: str = "", aliases: li
         return wrapper
 
     return decorator
-
 
 # 注入 mock 模块到 sys.modules
 _mock_sdk = type(sys)("maibot_sdk")
@@ -246,7 +235,6 @@ if str(plugin_dir) not in sys.path:
 from plugin import (
     HEADERS,
     RENDER_WIDTH,
-    RENDER_WIDTH_HD,
     REQUEST_TIMEOUT,
     SUPABASE_URL,
     SukiBookingPlugin,
@@ -263,7 +251,6 @@ TEST_PASS = 0
 TEST_FAIL = 0
 TEST_SKIP = 0
 
-
 def assert_equal(actual: Any, expected: Any, label: str = "") -> None:
     """断言两个值相等"""
     global TEST_PASS, TEST_FAIL
@@ -275,7 +262,6 @@ def assert_equal(actual: Any, expected: Any, label: str = "") -> None:
         print(f"    expected: {expected!r}")
         print(f"    actual:   {actual!r}")
 
-
 def assert_true(value: bool, label: str = "") -> None:
     """断言值为 True"""
     global TEST_PASS, TEST_FAIL
@@ -284,7 +270,6 @@ def assert_true(value: bool, label: str = "") -> None:
     else:
         TEST_FAIL += 1
         print(f"  ✗ ASSERT FAIL: {label or 'assertion'}")
-
 
 def assert_in(item: Any, container: Any, label: str = "") -> None:
     """断言 item 在 container 中"""
@@ -295,7 +280,6 @@ def assert_in(item: Any, container: Any, label: str = "") -> None:
         TEST_FAIL += 1
         print(f"  ✗ ASSERT FAIL: {label or 'assertion'}")
         print(f"    expected {item!r} in {container!r}")
-
 
 def assert_in_substring(sub: str, s: str, label: str = "") -> None:
     """断言子串存在于字符串中"""
@@ -308,7 +292,6 @@ def assert_in_substring(sub: str, s: str, label: str = "") -> None:
         print(f"    expected substring: {sub!r}")
         print(f"    in string ({len(s)} chars): {s[:200]!r}...")
 
-
 def assert_not_in(item: Any, container: Any, label: str = "") -> None:
     """断言 item 不在 container 中"""
     global TEST_PASS, TEST_FAIL
@@ -318,7 +301,6 @@ def assert_not_in(item: Any, container: Any, label: str = "") -> None:
         TEST_FAIL += 1
         print(f"  ✗ ASSERT FAIL: {label or 'assertion'}")
         print(f"    did not expect {item!r} in {container!r}")
-
 
 def assert_not_in_substring(sub: str, s: str, label: str = "") -> None:
     """断言子串不存在于字符串中"""
@@ -330,18 +312,15 @@ def assert_not_in_substring(sub: str, s: str, label: str = "") -> None:
         print(f"  ✗ ASSERT FAIL: {label or 'assertion'}")
         print(f"    did not expect substring: {sub!r}")
 
-
 def print_section(title: str) -> None:
     """打印分隔标题"""
     print(f"\n{'=' * 60}")
     print(f"  {title}")
     print(f"{'=' * 60}")
 
-
 def print_json(data: Any) -> None:
     """漂亮打印 JSON"""
     print(json.dumps(data, ensure_ascii=False, indent=2))
-
 
 def print_result(label: str, data: Any) -> None:
     """打印测试结果"""
@@ -352,7 +331,6 @@ def print_result(label: str, data: Any) -> None:
         print(data)
     else:
         print(data)
-
 
 def print_summary() -> None:
     """打印测试汇总"""
@@ -367,11 +345,9 @@ def print_summary() -> None:
     print(f"  总计: {TEST_PASS + TEST_FAIL + TEST_SKIP}")
     print(f"{'=' * 60}")
 
-
 # ============================================================================
 # 测试数据工厂
 # ============================================================================
-
 
 def make_sample_data(
     maids: list[dict] | None = None,
@@ -409,7 +385,6 @@ def make_sample_data(
         "reservations": reservations,
         "booking_enabled": booking_enabled,
     }
-
 
 def make_raw_api_item() -> dict:
     """创建模拟原始 API 返回的数据"""
@@ -455,11 +430,9 @@ def make_raw_api_item() -> dict:
         "booking_enabled": True,
     }
 
-
 # ============================================================================
 # 测试用例: 模块函数
 # ============================================================================
-
 
 async def test_escape_html() -> None:
     """测试 _escape_html HTML 转义"""
@@ -483,11 +456,9 @@ async def test_escape_html() -> None:
 
     print("  _escape_html 测试完成")
 
-
 # ============================================================================
 # 测试用例: 静态方法
 # ============================================================================
-
 
 async def test_filter_booking() -> None:
     """测试 _filter_booking 过滤方法"""
@@ -536,7 +507,6 @@ async def test_filter_booking() -> None:
 
     print("  _filter_booking 所有断言通过！")
 
-
 async def test_filter_booking_edge_cases() -> None:
     """测试 _filter_booking 边界情况"""
     print_section("测试 _filter_booking 边界情况")
@@ -558,7 +528,6 @@ async def test_filter_booking_edge_cases() -> None:
     assert_equal(filtered["maids"][0]["signature"], "", "signature=None -> 默认 ''")
 
     print("  _filter_booking 边界情况测试完成")
-
 
 async def test_count_reservations_per_maid() -> None:
     """测试 _count_reservations_per_maid 统计"""
@@ -586,7 +555,6 @@ async def test_count_reservations_per_maid() -> None:
     assert_equal(bad_counts, {}, "空/None maidName 被跳过")
 
     print("  _count_reservations_per_maid 测试完成")
-
 
 async def test_format_booking() -> None:
     """测试 _format_booking 静态方法"""
@@ -627,11 +595,9 @@ async def test_format_booking() -> None:
     assert_in_substring("共 0 条", result_empty_book, "无预约记录")
     print_result("无预约", result_empty_book)
 
-
 # ============================================================================
 # 测试用例: HTML 生成
 # ============================================================================
-
 
 async def test_generate_available_maids_html() -> None:
     """测试 _generate_available_maids_html 模板一"""
@@ -673,7 +639,6 @@ async def test_generate_available_maids_html() -> None:
     print(f"  生成 HTML 长度: {len(html)} 字符")
     print("  _generate_available_maids_html 测试完成")
 
-
 async def test_generate_available_maids_html_no_available() -> None:
     """测试一览模板 - 无可预约女仆"""
     print_section("测试一览模板 - 无可预约女仆")
@@ -697,7 +662,6 @@ async def test_generate_available_maids_html_no_available() -> None:
     assert_in_substring("约满", html, "显示约满空状态") or assert_in_substring("empty-state", html, "空状态元素")
 
     print("  无可预约女仆测试完成")
-
 
 async def test_generate_available_maids_html_xss() -> None:
     """测试一览模板 - XSS 防护"""
@@ -733,7 +697,6 @@ async def test_generate_available_maids_html_xss() -> None:
 
     print("  XSS 防护测试完成")
 
-
 async def test_generate_maid_detail_html() -> None:
     """测试 _generate_maid_detail_html 模板二"""
     print_section("测试 _generate_maid_detail_html（女仆详情）")
@@ -768,8 +731,6 @@ async def test_generate_maid_detail_html() -> None:
     assert_in_substring("<!DOCTYPE html>", html, "HTML 声明")
     assert_in_substring("Suki 猫娘咖啡厅", html, "品牌名称")
     assert_in_substring("女仆预约详情", html, "页面标题")
-    # 详情页使用 HD 宽度（CSS 中带空格）
-    assert_in_substring("width: 780px", html, "详情页使用 HD 宽度")
     assert_in_substring("detail-img", html, "详情页图片")
     assert_in_substring("猫娘A", html, "女仆名称")
     assert_in_substring("ASMR", html, "标签")
@@ -784,7 +745,6 @@ async def test_generate_maid_detail_html() -> None:
 
     print(f"  生成 HTML 长度: {len(html)} 字符")
     print("  _generate_maid_detail_html 测试完成")
-
 
 async def test_generate_maid_detail_html_disabled() -> None:
     """测试详情模板 - disabled 女仆"""
@@ -805,16 +765,11 @@ async def test_generate_maid_detail_html_disabled() -> None:
     }
     html = SukiBookingPlugin._generate_maid_detail_html(data, "猫娘B")
 
-    # 详情页（包括空状态分支）也使用 HD 宽度
-    # 详情页（包括空状态分支）也使用 HD 宽度（CSS 中带空格）
-    assert_in_substring("width: 780px", html, "disabled 详情页也使用 HD 宽度")
-
     # disabled 女仆应显示"今日休息"
     assert_in_substring("今日休息", html, "disabled 显示今日休息")
     assert_not_in_substring("可预约", html, "disabled 不应显示可预约")
 
     print("  disabled 女仆测试完成")
-
 
 async def test_generate_maid_detail_html_booking_closed() -> None:
     """测试详情模板 - booking_enabled=False"""
@@ -840,7 +795,6 @@ async def test_generate_maid_detail_html_booking_closed() -> None:
 
     print("  booking_enabled=False 测试完成")
 
-
 async def test_generate_maid_detail_html_not_found() -> None:
     """测试详情模板 - 未找到女仆"""
     print_section("测试详情模板 - 未找到女仆")
@@ -860,7 +814,6 @@ async def test_generate_maid_detail_html_not_found() -> None:
 
     print("  未找到女仆测试完成")
 
-
 async def test_generate_maid_detail_html_no_reservations() -> None:
     """测试详情模板 - 无预约记录"""
     print_section("测试详情模板 - 无预约记录")
@@ -877,7 +830,6 @@ async def test_generate_maid_detail_html_no_reservations() -> None:
     assert_in_substring("暂无预约记录", html, "暂无预约提示") or assert_in_substring("📭", html, "暂无预约 emoji")
 
     print("  无预约记录测试完成")
-
 
 async def test_generate_maid_detail_html_xss() -> None:
     """测试详情模板 - XSS 防护"""
@@ -910,11 +862,9 @@ async def test_generate_maid_detail_html_xss() -> None:
 
     print("  XSS 防护测试完成")
 
-
 # ============================================================================
 # 测试用例: 渲染管线
 # ============================================================================
-
 
 async def test_render_and_send_png_success_str() -> None:
     """测试 _render_and_send_png - html2png 返回 str"""
@@ -936,7 +886,6 @@ async def test_render_and_send_png_success_str() -> None:
     assert_equal(sent[0]["data"], "base64_image_data_here", "图片数据正确")
 
     print("  str 返回值测试完成")
-
 
 async def test_render_and_send_png_success_dict() -> None:
     """测试 _render_and_send_png - html2png 返回 dict"""
@@ -965,7 +914,6 @@ async def test_render_and_send_png_success_dict() -> None:
 
     print("  dict 返回值测试完成")
 
-
 async def test_render_and_send_png_success_bytes() -> None:
     """测试 _render_and_send_png - html2png 返回 bytes"""
     print_section("测试 _render_and_send_png - bytes 返回值")
@@ -982,7 +930,6 @@ async def test_render_and_send_png_success_bytes() -> None:
 
     print("  bytes 返回值测试完成")
 
-
 async def test_render_and_send_png_failure_exception() -> None:
     """测试 _render_and_send_png - html2png 抛异常"""
     print_section("测试 _render_and_send_png - 异常")
@@ -996,7 +943,6 @@ async def test_render_and_send_png_failure_exception() -> None:
     assert_equal(len(plugin.ctx.send.sent_messages), 0, "没有发送任何消息")
 
     print("  异常处理测试完成")
-
 
 async def test_render_and_send_png_failure_empty() -> None:
     """测试 _render_and_send_png - html2png 返回空值"""
@@ -1020,7 +966,6 @@ async def test_render_and_send_png_failure_empty() -> None:
 
     print("  空结果处理测试完成")
 
-
 async def test_render_and_send_png_failure_unknown_type() -> None:
     """测试 _render_and_send_png - html2png 返回未知类型"""
     print_section("测试 _render_and_send_png - 未知类型")
@@ -1033,11 +978,9 @@ async def test_render_and_send_png_failure_unknown_type() -> None:
 
     print("  未知类型处理测试完成")
 
-
 # ============================================================================
 # 测试用例: 常量
 # ============================================================================
-
 
 async def test_constants() -> None:
     """测试常量定义"""
@@ -1053,24 +996,15 @@ async def test_constants() -> None:
     assert_in_substring("#6B4226", css, "咖啡棕主色")
     assert_in_substring("#C87941", css, "焦糖橙强调")
 
-    # RENDER_WIDTH_HD 应为 780（2x DPI）
-    assert_equal(RENDER_WIDTH_HD, 780, "RENDER_WIDTH_HD = 780")
-
-    # _load_css(780) 应注入 HD 宽度
-    css_hd = _load_css(780)
-    assert_in_substring("width: 780px", css_hd, "HD CSS 包含注入后的宽度 780px")
-
     # HEADERS 应包含 Supabase 认证
     assert_in("apikey", HEADERS, "HEADERS 包含 apikey")
     assert_in("Authorization", HEADERS, "HEADERS 包含 Authorization")
 
     print("  常量测试完成")
 
-
 # ============================================================================
 # 测试用例: _load_css 缓存行为
 # ============================================================================
-
 
 async def test_load_css_caching() -> None:
     """测试 _load_css 缓存行为"""
@@ -1079,22 +1013,13 @@ async def test_load_css_caching() -> None:
     css1 = _load_css(390)
     css2 = _load_css(390)
     assert_equal(css1, css2, "相同宽度返回一致结果")
-
-    css_hd = _load_css(780)
-    css_hd2 = _load_css(780)
-    assert_equal(css_hd, css_hd2, "HD 宽度返回一致结果")
-
-    # 两个宽度产生不同的内容
-    assert_true(len(css1) > 0, "390 CSS 非空")
-    assert_true(len(css_hd) > 0, "780 CSS 非空")
+    assert_true(len(css1) > 0, "CSS 非空")
 
     print("  _load_css 缓存测试完成")
-
 
 # ============================================================================
 # 测试用例: 网络相关
 # ============================================================================
-
 
 async def test_api_request(plugin: SukiBookingPlugin, limit: int = 1) -> dict:
     """测试 _fetch_booking API 请求"""
@@ -1124,11 +1049,9 @@ async def test_api_request(plugin: SukiBookingPlugin, limit: int = 1) -> dict:
 
     return {"success": True, "elapsed": elapsed, "count": count, "data": data}
 
-
 # ============================================================================
 # 测试用例: Tool 调用
 # ============================================================================
-
 
 async def test_tool_call(plugin: SukiBookingPlugin, limit: int = 1) -> dict:
     """测试 Tool 调用: handle_tool_query_booking"""
@@ -1147,7 +1070,6 @@ async def test_tool_call(plugin: SukiBookingPlugin, limit: int = 1) -> dict:
 
     print_result("Tool 返回值", result)
     return result
-
 
 async def test_tool_call_with_maid_name() -> None:
     """测试 Tool 调用 - 指定 maid_name"""
@@ -1172,7 +1094,6 @@ async def test_tool_call_with_maid_name() -> None:
     print_result("Tool 返回值 (maid_name=猫娘A)", result)
     print("  maid_name 指定测试完成")
 
-
 async def test_tool_call_degradation() -> None:
     """测试 Tool 调用 - 降级为文本"""
     print_section("测试 Tool 调用 - 降级为文本")
@@ -1191,11 +1112,9 @@ async def test_tool_call_degradation() -> None:
     print_result("降级返回值", result)
     print("  降级测试完成")
 
-
 # ============================================================================
 # 测试用例: Command 调用
 # ============================================================================
-
 
 async def test_command(plugin: SukiBookingPlugin) -> dict:
     """测试 Command 调用: handle_suki"""
@@ -1233,7 +1152,6 @@ async def test_command(plugin: SukiBookingPlugin) -> dict:
         "sent_messages": plugin.ctx.send.sent_messages,
     }
 
-
 async def test_command_with_render_success() -> None:
     """测试 Command 调用 - html2png 成功"""
     print_section("测试 Command 调用 - html2png 成功")
@@ -1262,7 +1180,6 @@ async def test_command_with_render_success() -> None:
     print_result("返回值", (success, response, weight))
     print_result("发送的消息", sent)
     print("  Command 成功渲染测试完成")
-
 
 async def test_command_degradation() -> None:
     """测试 Command 调用 - 降级为文本"""
@@ -1293,11 +1210,9 @@ async def test_command_degradation() -> None:
     print_result("发送的文本消息", text_messages)
     print("  Command 降级测试完成")
 
-
 # ============================================================================
 # 测试用例: 生命周期 & 边界情况
 # ============================================================================
-
 
 async def test_lifecycle(plugin: SukiBookingPlugin) -> None:
     """测试插件生命周期钩子"""
@@ -1314,7 +1229,6 @@ async def test_lifecycle(plugin: SukiBookingPlugin) -> None:
 
     print("  生命周期钩子测试完成")
 
-
 async def test_tool_with_different_limits(plugin: SukiBookingPlugin) -> None:
     """测试 Tool 使用不同 limit 值"""
     print_section("测试 Tool 不同 limit 值")
@@ -1324,7 +1238,6 @@ async def test_tool_with_different_limits(plugin: SukiBookingPlugin) -> None:
         result = await plugin.handle_tool_query_booking(limit=limit)
         count = result.get("count", 0) if result.get("success") else 0
         print(f"    -> 获取 {count} 条记录")
-
 
 async def test_edge_cases(plugin: SukiBookingPlugin) -> None:
     """测试边界情况"""
@@ -1340,11 +1253,9 @@ async def test_edge_cases(plugin: SukiBookingPlugin) -> None:
     result = await plugin.handle_tool_query_booking(limit=100)
     print_result("limit=100 结果", result)
 
-
 # ============================================================================
 # 测试用例: 两栏布局 & 图片缓存
 # ============================================================================
-
 
 async def test_generate_available_maids_html_two_columns() -> None:
     """测试一览模板 - 双栏布局（>12 位活跃女仆）"""
@@ -1383,7 +1294,6 @@ async def test_generate_available_maids_html_two_columns() -> None:
 
     print(f"  生成 HTML 长度: {len(html)} 字符")
     print("  双栏布局测试完成")
-
 
 async def test_generate_available_maids_html_single_column() -> None:
     """测试一览模板 - 单栏布局（≤12 位活跃女仆）"""
@@ -1428,7 +1338,6 @@ async def test_generate_available_maids_html_single_column() -> None:
     assert_in_substring("客人Y", html, "显示客人 2")
 
     print("  单栏布局测试完成")
-
 
 async def test_html_with_image_cache() -> None:
     """测试 HTML 生成时使用 image_cache 参数"""
@@ -1491,7 +1400,6 @@ async def test_html_with_image_cache() -> None:
 
     print("  image_cache 参数测试完成")
 
-
 async def test_render_and_send_png_no_stream_id() -> None:
     """测试 _render_and_send_png - 空 stream_id"""
     print_section("测试 _render_and_send_png - 空 stream_id")
@@ -1505,11 +1413,9 @@ async def test_render_and_send_png_no_stream_id() -> None:
 
     print("  空 stream_id 测试完成")
 
-
 # ============================================================================
 # 测试用例: list_suki_maids Tool
 # ============================================================================
-
 
 async def test_tool_list_maids() -> None:
     """测试 Tool: handle_tool_list_maids"""
@@ -1535,7 +1441,6 @@ async def test_tool_list_maids() -> None:
     print_result("list_suki_maids 返回值", result)
     print("  list_suki_maids 测试完成")
 
-
 async def test_tool_list_maids_empty() -> None:
     """测试 Tool list_suki_maids - 无女仆数据"""
     print_section("测试 Tool list_suki_maids - 空数据")
@@ -1553,7 +1458,6 @@ async def test_tool_list_maids_empty() -> None:
     assert_in_substring("暂无", result.get("content", ""), "提示暂无数据")
 
     print("  list_suki_maids 空数据测试完成")
-
 
 async def test_tool_list_maids_failure() -> None:
     """测试 Tool list_suki_maids - 数据获取失败"""
@@ -1573,11 +1477,9 @@ async def test_tool_list_maids_failure() -> None:
 
     print("  list_suki_maids 失败测试完成")
 
-
 # ============================================================================
 # 测试用例: Tool content_items 结构验证
 # ============================================================================
-
 
 async def test_tool_content_items_structure() -> None:
     """测试 Tool 返回的 content_items 结构完整性"""
@@ -1608,7 +1510,6 @@ async def test_tool_content_items_structure() -> None:
 
     print("  content_items 结构测试完成")
 
-
 async def test_tool_query_booking_no_stream_id() -> None:
     """测试 Tool 调用 - 无 stream_id 时不尝试渲染"""
     print_section("测试 Tool 调用 - 无 stream_id")
@@ -1628,11 +1529,9 @@ async def test_tool_query_booking_no_stream_id() -> None:
 
     print("  无 stream_id 测试完成")
 
-
 # ============================================================================
 # 测试用例: _fetch_booking 错误路径
 # ============================================================================
-
 
 async def test_fetch_booking_error_paths() -> None:
     """测试 _fetch_booking 的错误处理"""
@@ -1689,11 +1588,9 @@ async def test_fetch_booking_error_paths() -> None:
 
     print("  _fetch_booking 错误路径测试完成")
 
-
 # ============================================================================
 # 测试用例: _format_booking 边界情况
 # ============================================================================
-
 
 async def test_format_booking_edge_cases() -> None:
     """测试 _format_booking 边界情况"""
@@ -1722,11 +1619,9 @@ async def test_format_booking_edge_cases() -> None:
 
     print("  _format_booking 边界测试完成")
 
-
 # ============================================================================
 # 测试用例: /抽猫娘 Command 静态验证
 # ============================================================================
-
 
 async def test_draw_maid_command_static() -> None:
     """测试 /抽猫娘 Command 方法存在且基本结构正确"""
@@ -1757,11 +1652,9 @@ async def test_draw_maid_command_static() -> None:
 
     print("  /抽猫娘 静态验证完成")
 
-
 # ============================================================================
 # 测试用例: 详情页签名空值处理
 # ============================================================================
-
 
 async def test_detail_signature_variations() -> None:
     """测试详情页签名的各种情况"""
@@ -1802,11 +1695,9 @@ async def test_detail_signature_variations() -> None:
 
     print("  签名处理测试完成")
 
-
 # ============================================================================
 # 测试用例: 预约记录排序
 # ============================================================================
-
 
 async def test_reservation_sorting_in_single_column() -> None:
     """测试单栏模式中预约记录按时间排序"""
@@ -1838,11 +1729,9 @@ async def test_reservation_sorting_in_single_column() -> None:
 
     print("  预约排序测试完成")
 
-
 # ============================================================================
 # 数据验证
 # ============================================================================
-
 
 def validate_response(result: dict, test_name: str) -> list[str]:
     """验证 Tool 返回值的结构和内容"""
@@ -1865,11 +1754,9 @@ def validate_response(result: dict, test_name: str) -> list[str]:
 
     return issues
 
-
 # ============================================================================
 # 主测试运行器
 # ============================================================================
-
 
 async def run_tests(args: argparse.Namespace) -> bool:
     """运行选定的测试，返回是否全部通过"""
@@ -2016,7 +1903,6 @@ async def run_tests(args: argparse.Namespace) -> bool:
     print("\n  ✨ 所有测试通过！")
     return True
 
-
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Suki 预约查询插件 - 模拟运行测试",
@@ -2058,7 +1944,6 @@ def main() -> None:
 
     success = asyncio.run(run_tests(args))
     sys.exit(0 if success else 1)
-
 
 if __name__ == "__main__":
     main()
