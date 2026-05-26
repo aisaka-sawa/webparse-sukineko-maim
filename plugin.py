@@ -30,6 +30,9 @@ HEADERS = {
 # 请求超时（秒）
 REQUEST_TIMEOUT = 10
 
+# 单张女仆图片下载超时（秒）
+IMAGE_DOWNLOAD_TIMEOUT = 10 * 60
+
 # 每次查库前的轻量延迟（秒），避免数据库随机与本地随机在同一瞬时触发
 DB_QUERY_DELAY_SECONDS = 0.3
 
@@ -137,7 +140,9 @@ class SukiBookingPlugin(MaiBotPlugin):
                         async with aiohttp.ClientSession() as session:
                             async with session.get(
                                 url,
-                                timeout=aiohttp.ClientTimeout(total=15),
+                                timeout=aiohttp.ClientTimeout(
+                                    total=IMAGE_DOWNLOAD_TIMEOUT
+                                ),
                             ) as resp:
                                 if resp.status == 200:
                                     content = await resp.read()
