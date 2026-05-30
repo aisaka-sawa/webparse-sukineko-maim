@@ -361,6 +361,7 @@ def make_sample_data(
                 "name": "猫娘A",
                 "image": "https://example.com/a.png",
                 "disabled": False,
+                "vrcid": "vrc_1",
                 "tags": ["ASMR", "唱歌", "温柔"],
                 "signature": "你好呀，主人~",
             },
@@ -368,6 +369,7 @@ def make_sample_data(
                 "name": "猫娘B",
                 "image": "https://example.com/b.png",
                 "disabled": True,
+                "vrcid": "vrc_2",
                 "tags": [],
                 "signature": "",
             },
@@ -376,6 +378,7 @@ def make_sample_data(
         reservations = [
             {
                 "maidName": "猫娘A",
+                "maidVrcid": "vrc_1",
                 "timeSlot": "14:00-15:00",
                 "guestUsername": "客人A",
             },
@@ -479,23 +482,34 @@ async def test_filter_booking() -> None:
 
     # 验证新字段: tags, signature
     m0 = filtered["maids"][0]
-    assert_equal(set(m0.keys()), {"name", "image", "disabled", "tags", "signature"}, "maid 字段集合正确")
+    assert_equal(
+        set(m0.keys()),
+        {"name", "image", "disabled", "vrcid", "tags", "signature", "weight"},
+        "maid 字段集合正确",
+    )
     assert_equal(m0["name"], "猫娘A", "maid[0] name")
     assert_equal(m0["disabled"], False, "maid[0] disabled")
+    assert_equal(m0["vrcid"], "vrc_1", "maid[0] vrcid")
     assert_equal(m0["tags"], ["ASMR", "唱歌"], "maid[0] tags")
     assert_equal(m0["signature"], "你好呀", "maid[0] signature")
 
     m1 = filtered["maids"][1]
     assert_equal(m1["name"], "猫娘B", "maid[1] name")
     assert_equal(m1["disabled"], True, "maid[1] disabled")
+    assert_equal(m1["vrcid"], "vrc_2", "maid[1] vrcid")
     assert_equal(m1["tags"], [], "maid[1] tags 默认为 []")
     assert_equal(m1["signature"], "", "maid[1] signature 默认为 ''")
 
     # 验证 reservations
     assert_equal(len(filtered["reservations"]), 1, "reservations 数量为 1")
     r = filtered["reservations"][0]
-    assert_equal(set(r.keys()), {"maidName", "timeSlot", "guestUsername"}, "reservation 字段集合正确")
+    assert_equal(
+        set(r.keys()),
+        {"maidName", "maidVrcid", "timeSlot", "guestUsername"},
+        "reservation 字段集合正确",
+    )
     assert_equal(r["maidName"], "猫娘A", "reservation maidName")
+    assert_equal(r["maidVrcid"], "vrc_1", "reservation maidVrcid")
     assert_equal(r["guestUsername"], "测试客人", "reservation guestUsername")
 
     # 验证无关字段被过滤
@@ -533,26 +547,56 @@ async def test_count_reservations_per_maid() -> None:
     """测试 _count_reservations_per_maid 统计"""
     print_section("测试 _count_reservations_per_maid")
 
-    # 基本统计
-    reservations = [
-        {"maidName": "猫娘A", "timeSlot": "14:00-15:00", "guestUsername": "客人1"},
-        {"maidName": "猫娘A", "timeSlot": "15:00-16:00", "guestUsername": "客人2"},
-        {"maidName": "猫娘B", "timeSlot": "14:00-15:00", "guestUsername": "客人3"},
+    maids = [
+        {"name": "猫娘A", "vrcid": "vrc_a"},
+        {"name": "猫娘B", "vrcid": "vrc_b"},
     ]
-    counts = SukiBookingPlugin._count_reservations_per_maid(reservations)
+
+    # 基本统计：通过 vrcid 关联，maidName 即使是显示名也能统计到简称
+    reservations = [
+        {
+            "maidName": "猫娘A_display",
+            "maidVrcid": "vrc_a",
+            "timeSlot": "14:00-15:00",
+            "guestUsername": "客人1",
+        },
+        {
+            "maidName": "猫娘A_display",
+            "maidVrcid": "vrc_a",
+            "timeSlot": "15:00-16:00",
+            "guestUsername": "客人2",
+        },
+        {
+            "maidName": "猫娘B_display",
+            "maidVrcid": "vrc_b",
+            "timeSlot": "14:00-15:00",
+            "guestUsername": "客人3",
+        },
+    ]
+    counts = SukiBookingPlugin._count_reservations_per_maid(maids, reservations)
     assert_equal(counts, {"猫娘A": 2, "猫娘B": 1}, "基本统计")
 
     # 空列表
-    empty_counts = SukiBookingPlugin._count_reservations_per_maid([])
+    empty_counts = SukiBookingPlugin._count_reservations_per_maid(maids, [])
     assert_equal(empty_counts, {}, "空列表 -> 空字典")
 
-    # 空 maidName
+    # 空 maidVrcid / 不匹配 maidVrcid
     bad_reservations = [
-        {"maidName": "", "timeSlot": "14:00-15:00", "guestUsername": "x"},
-        {"maidName": None, "timeSlot": "15:00-16:00", "guestUsername": "x"},
+        {
+            "maidName": "",
+            "maidVrcid": "",
+            "timeSlot": "14:00-15:00",
+            "guestUsername": "x",
+        },
+        {
+            "maidName": None,
+            "maidVrcid": "unknown",
+            "timeSlot": "15:00-16:00",
+            "guestUsername": "x",
+        },
     ]
-    bad_counts = SukiBookingPlugin._count_reservations_per_maid(bad_reservations)
-    assert_equal(bad_counts, {}, "空/None maidName 被跳过")
+    bad_counts = SukiBookingPlugin._count_reservations_per_maid(maids, bad_reservations)
+    assert_equal(bad_counts, {}, "空/不匹配 maidVrcid 被跳过")
 
     print("  _count_reservations_per_maid 测试完成")
 
@@ -861,6 +905,44 @@ async def test_generate_maid_detail_html_xss() -> None:
     assert_in_substring("&lt;script&gt;", html, "转义后的 script")
 
     print("  XSS 防护测试完成")
+
+async def test_vrcid_reservation_matching() -> None:
+    """测试预约记录使用 vrcid 关联，而不是 maidName/name 精确匹配"""
+    print_section("测试 vrcid 预约关联")
+
+    data = {
+        "maids": [
+            {
+                "name": "十娘",
+                "image": "",
+                "disabled": False,
+                "vrcid": "vrc_shiniang",
+                "tags": [],
+                "signature": "",
+            },
+        ],
+        "reservations": [
+            {
+                "maidName": "杜十娘（shiniang）",
+                "maidVrcid": "vrc_shiniang",
+                "timeSlot": "10:00-11:00",
+                "guestUsername": "客人A",
+            },
+        ],
+        "booking_enabled": True,
+    }
+
+    overview_html = SukiBookingPlugin._generate_available_maids_html(data)
+    assert_in_substring("已约 1/2", overview_html, "一览页按 vrcid 统计预约数")
+    assert_in_substring("10:00-11:00", overview_html, "一览页按 vrcid 显示预约时间")
+    assert_in_substring("客人A", overview_html, "一览页按 vrcid 显示客人")
+
+    detail_html = SukiBookingPlugin._generate_maid_detail_html(data, "十娘")
+    assert_in_substring("预约记录（1 条）", detail_html, "详情页按 vrcid 统计预约记录")
+    assert_in_substring("客人A", detail_html, "详情页按 vrcid 显示预约记录")
+    assert_not_in_substring("暂无预约记录", detail_html, "详情页不应显示空状态")
+
+    print("  vrcid 预约关联测试完成")
 
 # ============================================================================
 # 测试用例: 渲染管线
@@ -1820,6 +1902,7 @@ async def run_tests(args: argparse.Namespace) -> bool:
         await test_generate_maid_detail_html_not_found()
         await test_generate_maid_detail_html_no_reservations()
         await test_generate_maid_detail_html_xss()
+        await test_vrcid_reservation_matching()
 
         # 常量 & CSS 加载
         await test_constants()

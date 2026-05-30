@@ -8,7 +8,7 @@
 |------|--------|--------|
 | 输出形式 | `ctx.send.text(...)` 发送纯文本 | `ctx.render.html2png(...)` → `ctx.send.image(...)` 发送 PNG 图片 |
 | Tool 返回 | `{"success": True, "content": "文本..."}` | `{"success": True, "content": "描述", "content_items": [图片base64]}` |
-| 女仆字段 | name, image, disabled | 新增 tags, signature（用于丰富卡片展示） |
+| 女仆字段 | name, image, disabled | 新增 vrcid, tags, signature（vrcid 用于预约关联，tags/signature 用于丰富卡片展示） |
 | Tool 参数 | 仅 `limit` | 新增可选 `maid_name`，不填→一览，填入→详情 |
 | 降级策略 | 无 | 图片渲染失败时自动降级为原文本格式 |
 
@@ -48,7 +48,7 @@
 
 | 方法 | 类型 | 职责 |
 |------|------|------|
-| `_count_reservations_per_maid(reservations)` | 静态 | 统计每位女仆的预约数量，返回 `{名称: 计数}` |
+| `_count_reservations_per_maid(maids, reservations)` | 静态 | 通过 `maids[].vrcid` 与 `reservations[].maidVrcid` 统计每位女仆的预约数量，返回 `{名称: 计数}` |
 | `_generate_available_maids_html(data)` | 静态 | 模板一：筛选 disabled=false 且预约数 ≤1 的女仆，生成卡片列表 HTML |
 | `_generate_maid_detail_html(data, maid_name)` | 静态 | 模板二：查找指定女仆，生成含大图、标签、签名、预约记录的详情 HTML |
 | `_render_and_send_png(html, stream_id)` | 实例 | 渲染管线：html2png → 解析结果(str/dict/bytes) → send.image |
@@ -165,7 +165,8 @@ html2png(html)
 
 **`_filter_booking` 扩展字段：**
 - 旧：`maids: [{name, image, disabled}]`
-- 新：`maids: [{name, image, disabled, tags, signature}]`
+- 新：`maids: [{name, image, disabled, vrcid, tags, signature}]`
+- 预约记录新增保留 `maidVrcid`，用于和 `maids[].vrcid` 稳定关联
 - `tags` 默认 `[]`，`signature` 默认 `""`
 
 **Tool description 更新：**

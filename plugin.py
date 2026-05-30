@@ -292,8 +292,8 @@ class SukiBookingPlugin(MaiBotPlugin):
         """从 Supabase 获取预约数据，过滤无关字段后返回 JSON 列表或 None（失败时）
 
         保留字段:
-          - maids: name, image, disabled, tags, signature, weight
-          - reservations: maidName, timeSlot, guestUsername
+          - maids: name, image, disabled, vrcid, tags, signature, weight
+          - reservations: maidName, maidVrcid, timeSlot, guestUsername
           - booking_enabled
 
         Args:
@@ -347,6 +347,7 @@ class SukiBookingPlugin(MaiBotPlugin):
                     "name": m.get("name", ""),
                     "image": m.get("image", ""),
                     "disabled": m.get("disabled", False),
+                    "vrcid": m.get("vrcid", ""),
                     "tags": m.get("tags", []) or [],
                     "signature": m.get("signature", "") or "",
                     "weight": m.get("weight", DEFAULT_DRAW_WEIGHT),
@@ -358,6 +359,7 @@ class SukiBookingPlugin(MaiBotPlugin):
             reservations.append(
                 {
                     "maidName": r.get("maidName", ""),
+                    "maidVrcid": r.get("maidVrcid", ""),
                     "timeSlot": r.get("timeSlot", ""),
                     "guestUsername": r.get("guestUsername", ""),
                 }
@@ -372,15 +374,30 @@ class SukiBookingPlugin(MaiBotPlugin):
     # ── 数据统计辅助 ──────────────────────────────────────────────────
 
     @staticmethod
-    def _count_reservations_per_maid(reservations: list) -> dict[str, int]:
-        """按女仆名称统计预约数量
+    def _count_reservations_per_maid(
+        maids: list, reservations: list
+    ) -> dict[str, int]:
+        """按女仆 vrcid 统计预约数量
 
         Returns:
             {"女仆名称": 预约数}
         """
+        vrcid_to_name = {
+            m.get("vrcid", ""): m.get("name", "")
+            for m in maids
+            if m.get("vrcid", "") and m.get("name", "")
+        }
+        known_names = {m.get("name", "") for m in maids if m.get("name", "")}
+
         counts: dict[str, int] = {}
         for r in reservations:
-            name = r.get("maidName", "")
+            vrcid = r.get("maidVrcid", "")
+            name = vrcid_to_name.get(vrcid, "")
+            if not name:
+                # 兼容旧测试数据或旧缓存：只有缺少 vrcid 时才退回名称精确匹配。
+                fallback_name = r.get("maidName", "")
+                if fallback_name in known_names:
+                    name = fallback_name
             if name:
                 counts[name] = counts.get(name, 0) + 1
         return counts
@@ -471,7 +488,9 @@ class SukiBookingPlugin(MaiBotPlugin):
         reservations = data.get("reservations", []) or []
         booking_enabled = data.get("booking_enabled", False)
 
-        reserve_counts = SukiBookingPlugin._count_reservations_per_maid(reservations)
+        reserve_counts = SukiBookingPlugin._count_reservations_per_maid(
+            maids, reservations
+        )
         active_maids = [m for m in maids if not m.get("disabled")]
         use_two_col = len(active_maids) > 12
 
@@ -486,6 +505,7 @@ class SukiBookingPlugin(MaiBotPlugin):
             name = m.get("name", "")
             image = m.get("image", "")
             tags = m.get("tags", []) or []
+            maid_vrcid = m.get("vrcid", "")
             count = reserve_counts.get(name, 0)
 
             # 标签（两栏只显示 2 个）
@@ -532,7 +552,15 @@ class SukiBookingPlugin(MaiBotPlugin):
                 # ── 单栏模式：含预约槽位 ──
                 # 提取该女仆的预约记录（最多 2 条），按时间排序
                 maid_resv = sorted(
-                    [r for r in reservations if r.get("maidName", "") == name],
+                    [
+                        r
+                        for r in reservations
+                        if (maid_vrcid and r.get("maidVrcid", "") == maid_vrcid)
+                        or (
+                            not maid_vrcid
+                            and r.get("maidName", "") == name
+                        )
+                    ],
                     key=lambda r: r.get("timeSlot", ""),
                 )
                 slot1_html = '<div class="slot-row slot-free">可预约</div>'
@@ -647,8 +675,15 @@ class SukiBookingPlugin(MaiBotPlugin):
 </html>"""
 
         # 该女仆的预约记录
+        target_vrcid = target.get("vrcid", "")
         maid_reservations = [
-            r for r in reservations if r.get("maidName", "") == maid_name
+            r
+            for r in reservations
+            if (target_vrcid and r.get("maidVrcid", "") == target_vrcid)
+            or (
+                not target_vrcid
+                and r.get("maidName", "") == maid_name
+            )
         ]
 
         name = target.get("name", "")
