@@ -786,6 +786,7 @@ class SukiBookingPlugin(MaiBotPlugin):
                 html=html,
                 wait_until="load",
                 timeout_ms=10000,
+                allow_network=True,
             )
         except Exception as e:
             self.ctx.logger.error("html2png 渲染异常: %s", e)
