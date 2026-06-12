@@ -62,9 +62,7 @@ _CSS_CACHE: dict[int, str] = {}
 def _load_css(width: int) -> str:
     """读取 CSS 文件并替换 {width} 占位符，按宽度缓存"""
     if width not in _CSS_CACHE:
-        css_path = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "static", "style.css"
-        )
+        css_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "style.css")
         with open(css_path, "r", encoding="utf-8") as f:
             _CSS_CACHE[width] = f.read().replace("{width}", str(width))
     return _CSS_CACHE[width]
@@ -85,9 +83,7 @@ class SukiBookingPlugin(MaiBotPlugin):
     async def on_unload(self) -> None:
         self.ctx.logger.info("Suki 预约查询插件已卸载")
 
-    async def on_config_update(
-        self, scope: str, config_data: dict, version: str
-    ) -> None:
+    async def on_config_update(self, scope: str, config_data: dict, version: str) -> None:
         if scope == "self":
             self.ctx.logger.info("插件配置已更新: version=%s", version)
 
@@ -140,22 +136,16 @@ class SukiBookingPlugin(MaiBotPlugin):
                         async with aiohttp.ClientSession() as session:
                             async with session.get(
                                 url,
-                                timeout=aiohttp.ClientTimeout(
-                                    total=IMAGE_DOWNLOAD_TIMEOUT
-                                ),
+                                timeout=aiohttp.ClientTimeout(total=IMAGE_DOWNLOAD_TIMEOUT),
                             ) as resp:
                                 if resp.status == 200:
                                     content = await resp.read()
                                     # 保存原图
                                     with open(orig_filepath, "wb") as f:
                                         f.write(content)
-                                    self.ctx.logger.info(
-                                        "原图已缓存: %s -> %s", url, orig_filepath
-                                    )
+                                    self.ctx.logger.info("原图已缓存: %s -> %s", url, orig_filepath)
                                 else:
-                                    self.ctx.logger.warning(
-                                        "下载图片失败: %s, status=%d", url, resp.status
-                                    )
+                                    self.ctx.logger.warning("下载图片失败: %s, status=%d", url, resp.status)
                                     continue
                     except Exception as e:
                         self.ctx.logger.error("下载图片异常: %s, %s", url, e)
@@ -169,9 +159,7 @@ class SukiBookingPlugin(MaiBotPlugin):
                         img = PILImage.open(orig_filepath)
                         if not getattr(img, "is_animated", False):
                             if img.mode in ("RGBA", "P", "LA"):
-                                bg = PILImage.new(
-                                    "RGBA", img.size, (255, 255, 255, 255)
-                                )
+                                bg = PILImage.new("RGBA", img.size, (255, 255, 255, 255))
                                 if img.mode == "P":
                                     img = img.convert("RGBA")
                                 bg.paste(img, mask=img if img.mode == "RGBA" else None)
@@ -214,14 +202,10 @@ class SukiBookingPlugin(MaiBotPlugin):
                             img = PILImage.open(orig_filepath)
                             if not getattr(img, "is_animated", False):
                                 if img.mode in ("RGBA", "P", "LA"):
-                                    bg = PILImage.new(
-                                        "RGBA", img.size, (255, 255, 255, 255)
-                                    )
+                                    bg = PILImage.new("RGBA", img.size, (255, 255, 255, 255))
                                     if img.mode == "P":
                                         img = img.convert("RGBA")
-                                    bg.paste(
-                                        img, mask=img if img.mode == "RGBA" else None
-                                    )
+                                    bg.paste(img, mask=img if img.mode == "RGBA" else None)
                                     img = bg
                                 img = img.convert("RGB")
                                 if img.width > 400:
@@ -239,9 +223,7 @@ class SukiBookingPlugin(MaiBotPlugin):
                                     len(buf.getvalue()),
                                 )
                         except Exception as e:
-                            self.ctx.logger.debug(
-                                "缩略版生成失败（%s），降级使用原图", e
-                            )
+                            self.ctx.logger.debug("缩略版生成失败（%s），降级使用原图", e)
 
                 # ── 加载高清版到内存缓存 ──
                 hd_src = hd_filepath if os.path.exists(hd_filepath) else orig_filepath
@@ -249,11 +231,7 @@ class SukiBookingPlugin(MaiBotPlugin):
                     try:
                         with open(hd_src, "rb") as f:
                             hd_content = f.read()
-                        mime = (
-                            "image/jpeg"
-                            if hd_src.endswith(".jpg") or hd_src.endswith(".jpeg")
-                            else f"image/{ext}"
-                        )
+                        mime = "image/jpeg" if hd_src.endswith(".jpg") or hd_src.endswith(".jpeg") else f"image/{ext}"
                         hd_b64 = b64encode(hd_content).decode("ascii")
                         self._image_cache_hd[url] = f"data:{mime};base64,{hd_b64}"
                     except Exception as e:
@@ -374,18 +352,14 @@ class SukiBookingPlugin(MaiBotPlugin):
     # ── 数据统计辅助 ──────────────────────────────────────────────────
 
     @staticmethod
-    def _count_reservations_per_maid(
-        maids: list, reservations: list
-    ) -> dict[str, int]:
+    def _count_reservations_per_maid(maids: list, reservations: list) -> dict[str, int]:
         """按女仆 vrcid 统计预约数量
 
         Returns:
             {"女仆名称": 预约数}
         """
         vrcid_to_name = {
-            m.get("vrcid", ""): m.get("name", "")
-            for m in maids
-            if m.get("vrcid", "") and m.get("name", "")
+            m.get("vrcid", ""): m.get("name", "") for m in maids if m.get("vrcid", "") and m.get("name", "")
         }
         known_names = {m.get("name", "") for m in maids if m.get("name", "")}
 
@@ -408,9 +382,7 @@ class SukiBookingPlugin(MaiBotPlugin):
         weights: list[float] = []
         for maid in maids:
             name = maid.get("name", "")
-            raw_weight = CUSTOM_WEIGHTS.get(
-                name, maid.get("weight", DEFAULT_DRAW_WEIGHT)
-            )
+            raw_weight = CUSTOM_WEIGHTS.get(name, maid.get("weight", DEFAULT_DRAW_WEIGHT))
             try:
                 weight = float(raw_weight)
             except (TypeError, ValueError):
@@ -446,9 +418,7 @@ class SukiBookingPlugin(MaiBotPlugin):
             maids = item.get("maids", []) or []
             online = [m for m in maids if not m.get("disabled")]
             offline = [m for m in maids if m.get("disabled")]
-            lines.append(
-                f"• 猫娘: 共 {len(maids)} 位（在线 {len(online)} / 离线 {len(offline)}）"
-            )
+            lines.append(f"• 猫娘: 共 {len(maids)} 位（在线 {len(online)} / 离线 {len(offline)}）")
 
             for m in maids:
                 icon = "🟢" if not m.get("disabled") else "🔴"
@@ -472,9 +442,7 @@ class SukiBookingPlugin(MaiBotPlugin):
     # ── HTML 生成：模板一 - 可预约女仆一览 ────────────────────────────
 
     @staticmethod
-    def _generate_available_maids_html(
-        data: dict, image_cache: dict[str, str] | None = None
-    ) -> str:
+    def _generate_available_maids_html(data: dict, image_cache: dict[str, str] | None = None) -> str:
         """生成女仆一览 HTML（≤12 人单栏，>12 人双栏）
 
         Args:
@@ -488,16 +456,12 @@ class SukiBookingPlugin(MaiBotPlugin):
         reservations = data.get("reservations", []) or []
         booking_enabled = data.get("booking_enabled", False)
 
-        reserve_counts = SukiBookingPlugin._count_reservations_per_maid(
-            maids, reservations
-        )
+        reserve_counts = SukiBookingPlugin._count_reservations_per_maid(maids, reservations)
         active_maids = [m for m in maids if not m.get("disabled")]
         use_two_col = len(active_maids) > 12
 
         # 可预约人数统计
-        avail_count = sum(
-            1 for m in active_maids if reserve_counts.get(m.get("name", ""), 0) == 0
-        )
+        avail_count = sum(1 for m in active_maids if reserve_counts.get(m.get("name", ""), 0) == 0)
 
         # ── 构建卡片 ──
         cards_html = ""
@@ -510,10 +474,7 @@ class SukiBookingPlugin(MaiBotPlugin):
 
             # 标签（两栏只显示 2 个）
             tag_limit = 2 if use_two_col else 3
-            tags_html = "".join(
-                f'<span class="card-tag">{_escape_html(t)}</span>'
-                for t in tags[:tag_limit]
-            )
+            tags_html = "".join(f'<span class="card-tag">{_escape_html(t)}</span>' for t in tags[:tag_limit])
 
             # 图片
             if image and image_cache and image in image_cache:
@@ -556,10 +517,7 @@ class SukiBookingPlugin(MaiBotPlugin):
                         r
                         for r in reservations
                         if (maid_vrcid and r.get("maidVrcid", "") == maid_vrcid)
-                        or (
-                            not maid_vrcid
-                            and r.get("maidName", "") == name
-                        )
+                        or (not maid_vrcid and r.get("maidName", "") == name)
                     ],
                     key=lambda r: r.get("timeSlot", ""),
                 )
@@ -568,9 +526,7 @@ class SukiBookingPlugin(MaiBotPlugin):
                 for i, res in enumerate(maid_resv[:2]):
                     ts = _escape_html(res.get("timeSlot", ""))
                     guest = _escape_html(res.get("guestUsername", ""))
-                    slot_html = (
-                        f'<div class="slot-row slot-occupied">{ts}  {guest}</div>'
-                    )
+                    slot_html = f'<div class="slot-row slot-occupied">{ts}  {guest}</div>'
                     if i == 0:
                         slot1_html = slot_html
                     elif i == 1:
@@ -603,17 +559,15 @@ class SukiBookingPlugin(MaiBotPlugin):
             f'　可预约 <span class="stat-em">{avail_count}</span> 位'
         )
         status_html = (
-            '<span style="font-size:11px;color:#00897B;font-weight:600">预约开放中</span>'
+            '<span style="font-size:11px;color:#1769AA;font-weight:600">预约开放中</span>'
             if booking_enabled
-            else '<span style="font-size:11px;color:#D84315;font-weight:600">预约已关闭</span>'
+            else '<span style="font-size:11px;color:#4F6580;font-weight:600">预约已关闭</span>'
         )
 
         now_str = datetime.now(timezone.utc).strftime("%Y/%m/%d %H:%M")
         css = _load_css(RENDER_WIDTH)
 
-        cards_container = (
-            f'<div class="grid-2col">{cards_html}</div>' if use_two_col else cards_html
-        )
+        cards_container = f'<div class="grid-2col">{cards_html}</div>' if use_two_col else cards_html
 
         return f"""<!DOCTYPE html>
 <html lang="zh-CN">
@@ -636,9 +590,7 @@ class SukiBookingPlugin(MaiBotPlugin):
     # ── HTML 生成：模板二 - 单个女仆预约详情 ──────────────────────────
 
     @staticmethod
-    def _generate_maid_detail_html(
-        data: dict, maid_name: str, image_cache: dict[str, str] | None = None
-    ) -> str:
+    def _generate_maid_detail_html(data: dict, maid_name: str, image_cache: dict[str, str] | None = None) -> str:
         """生成「单个女仆预约详情」HTML
 
         Args:
@@ -680,10 +632,7 @@ class SukiBookingPlugin(MaiBotPlugin):
             r
             for r in reservations
             if (target_vrcid and r.get("maidVrcid", "") == target_vrcid)
-            or (
-                not target_vrcid
-                and r.get("maidName", "") == maid_name
-            )
+            or (not target_vrcid and r.get("maidName", "") == maid_name)
         ]
 
         name = target.get("name", "")
@@ -800,12 +749,7 @@ class SukiBookingPlugin(MaiBotPlugin):
         if isinstance(result, str):
             image_base64 = result
         elif isinstance(result, dict):
-            image_base64 = (
-                result.get("image_base64")
-                or result.get("data")
-                or result.get("image")
-                or ""
-            )
+            image_base64 = result.get("image_base64") or result.get("data") or result.get("image") or ""
         elif isinstance(result, bytes):
             image_base64 = b64encode(result).decode("ascii")
         else:
@@ -831,10 +775,12 @@ class SukiBookingPlugin(MaiBotPlugin):
         "query_suki_booking",
         description=(
             "查询 Suki 猫娘咖啡厅的预约信息。"
+            "[重要：此工具最多只能调用一次！调用后直接使用返回的结果回复用户，不要再次调用此工具。]"
             "不指定 maid_name 时返回全体女仆一览（含可预约/已约 1 次/已约满三种状态）；"
             "指定 maid_name 时返回该女仆的详细预约情况（含所有预约记录）。"
             "每位女仆最多可被预约 2 次，预约数 ≥ 2 表示已约满。"
-            "建议先调用 list_suki_maids 工具获取正确名称，再传入准确的 maid_name 查询详情。"
+            "先调用 list_suki_maids 工具获取正确名称，再传入准确的 maid_name 查询详情。"
+            "返回结果中已包含所有女仆的预约状态和抽到的女仆信息，直接使用即可，无需重复调用。"
         ),
         parameters=[
             ToolParameterInfo(
@@ -852,14 +798,10 @@ class SukiBookingPlugin(MaiBotPlugin):
             ),
         ],
     )
-    async def handle_tool_query_booking(
-        self, maid_name: str = "", limit: int = 1, **kwargs
-    ):
+    async def handle_tool_query_booking(self, maid_name: str = "", limit: int = 1, **kwargs):
         """AI 工具调用：查询 Suki 预约信息，生成 PNG 图片返回"""
         stream_id: str = kwargs.get("stream_id", "")
-        self.ctx.logger.info(
-            "Tool query_suki_booking 被调用: maid_name=%s, limit=%d", maid_name, limit
-        )
+        self.ctx.logger.info("Tool query_suki_booking 被调用: maid_name=%s, limit=%d", maid_name, limit)
 
         data = await self._fetch_booking(limit=limit)
         if data is None:
@@ -879,13 +821,65 @@ class SukiBookingPlugin(MaiBotPlugin):
 
         # 根据是否指定 maid_name 选择模板
         if maid_name and maid_name.strip():
-            html = self._generate_maid_detail_html(
-                item, maid_name.strip(), self._image_cache_hd
-            )
+            html = self._generate_maid_detail_html(item, maid_name.strip(), self._image_cache_hd)
             desc = f"已生成女仆「{maid_name}」的预约详情图片"
         else:
             html = self._generate_available_maids_html(item, self._image_cache)
             desc = "已生成女仆一览图片"
+
+        # 构建文本摘要，供 LLM 理解返回内容
+        maids = item.get("maids", []) or []
+        reservations = item.get("reservations", []) or []
+        text_summary_parts: list[str] = []
+
+        target_maid_name = (maid_name and maid_name.strip()) or ""
+        if target_maid_name:
+            # 指定了女仆名称：只返回该女仆的信息
+            target_maid = None
+            for m in maids:
+                if m.get("name") == target_maid_name:
+                    target_maid = m
+                    break
+
+            if target_maid is None:
+                text_summary_parts.append(f"未找到女仆「{target_maid_name}」的信息。")
+            else:
+                m_reservations = [r for r in reservations if r.get("maidName") == target_maid_name]
+                count = len(m_reservations)
+                disabled = target_maid.get("disabled", False)
+                if disabled:
+                    status = "今日休息"
+                elif count >= 2:
+                    status = "已约满"
+                elif count >= 1:
+                    status = f"已约{count}次"
+                else:
+                    status = "可预约"
+                text_summary_parts.append(f"当前查询的女仆: {target_maid_name} - {status}（{count}/2 次预约）")
+                if m_reservations:
+                    for r in m_reservations:
+                        time_slot = r.get("timeSlot", "")
+                        guest = r.get("guestUsername", "")
+                        text_summary_parts.append(f"  预约记录: {time_slot} | {guest}")
+        else:
+            # 未指定女仆：返回全体一览
+            text_summary_parts.append(f"【全体女仆一览 - 共 {len(maids)} 位女仆，{len(reservations)} 条预约记录】")
+            for m in maids:
+                mname = m.get("name", "未知")
+                disabled = m.get("disabled", False)
+                m_reservations = [r for r in reservations if r.get("maidName") == mname]
+                count = len(m_reservations)
+                if disabled:
+                    status = "今日休息"
+                elif count >= 2:
+                    status = "已约满"
+                elif count >= 1:
+                    status = f"已约{count}次"
+                else:
+                    status = "可预约"
+                text_summary_parts.append(f"  {mname}: {status}")
+
+        text_summary = "\n".join(text_summary_parts)
 
         # 尝试渲染并发送 PNG
         image_base64 = None
@@ -897,7 +891,7 @@ class SukiBookingPlugin(MaiBotPlugin):
             self.ctx.logger.info("Tool query_suki_booking: 图片生成并发送成功")
             return {
                 "success": True,
-                "content": desc,
+                "content": desc + "\n" + text_summary,
                 "content_items": [
                     {
                         "type": "image",
@@ -912,7 +906,7 @@ class SukiBookingPlugin(MaiBotPlugin):
             # 降级：返回文本
             self.ctx.logger.warning("Tool query_suki_booking: 图片渲染失败，降级为文本")
             formatted = self._format_booking(items)
-            return {"success": True, "content": formatted}
+            return {"success": True, "content": text_summary + "\n" + formatted}
 
     @Tool(
         "list_suki_maids",
@@ -1083,9 +1077,7 @@ class SukiBookingPlugin(MaiBotPlugin):
             ),
         ],
     )
-    async def handle_tool_draw_maid(
-        self, include_disabled: bool = True, limit: int = 1, **kwargs
-    ):
+    async def handle_tool_draw_maid(self, include_disabled: bool = True, limit: int = 1, **kwargs):
         """AI 工具调用：随机抽取女仆并返回详情 PNG 图片"""
         stream_id: str = kwargs.get("stream_id", "")
         self.ctx.logger.info(
@@ -1161,11 +1153,7 @@ class SukiBookingPlugin(MaiBotPlugin):
 def _escape_html(s: str) -> str:
     """转义 HTML 特殊字符"""
     return (
-        s.replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace('"', "&quot;")
-        .replace("'", "&#39;")
+        s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;").replace("'", "&#39;")
     )
 
 
