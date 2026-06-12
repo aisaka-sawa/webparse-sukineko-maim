@@ -595,7 +595,7 @@ class SukiBookingPlugin(MaiBotPlugin):
     </div>"""
 
         if not active_maids:
-            cards_html = '<div class="empty-state">🌸 暂无女仆信息</div>'
+            cards_html = '<div class="empty-state">🌻 暂无女仆信息</div>'
 
         # ── Header ──
         stats_html = (
@@ -603,9 +603,9 @@ class SukiBookingPlugin(MaiBotPlugin):
             f'　可预约 <span class="stat-em">{avail_count}</span> 位'
         )
         status_html = (
-            '<span style="font-size:11px;color:#2E7D32;font-weight:600">预约开放中</span>'
+            '<span style="font-size:11px;color:#00897B;font-weight:600">预约开放中</span>'
             if booking_enabled
-            else '<span style="font-size:11px;color:#C62828;font-weight:600">预约已关闭</span>'
+            else '<span style="font-size:11px;color:#D84315;font-weight:600">预约已关闭</span>'
         )
 
         now_str = datetime.now(timezone.utc).strftime("%Y/%m/%d %H:%M")
@@ -624,7 +624,7 @@ class SukiBookingPlugin(MaiBotPlugin):
 </head>
 <body>
 <div class="header">
-  <div class="brand">☕ Suki 猫娘咖啡厅</div>
+  <div class="brand">Suki猫娘咖啡厅</div>
   <div class="stats">{stats_html}</div>
   <div>{status_html}</div>
 </div>
@@ -667,7 +667,7 @@ class SukiBookingPlugin(MaiBotPlugin):
 <head><meta charset="utf-8"><style>{css}</style></head>
 <body>
 <div class="header">
-  <div class="brand">☕ Suki 猫娘咖啡厅</div>
+  <div class="brand">Suki猫娘咖啡厅</div>
 </div>
 <div class="empty-state">未找到女仆「{_escape_html(maid_name)}」的信息</div>
 <div class="footer">请确认女仆名称是否正确</div>
@@ -723,7 +723,7 @@ class SukiBookingPlugin(MaiBotPlugin):
       </div>
     </div>"""
         else:
-            resv_html = '<div class="empty-state" style="padding:24px 20px">📭 暂无预约记录</div>'
+            resv_html = '<div class="empty-state" style="padding:24px 20px">🌊 暂无预约记录</div>'
 
         # 优先使用缓存的 base64 图片
         if image and image_cache and image in image_cache:
@@ -751,7 +751,7 @@ class SukiBookingPlugin(MaiBotPlugin):
 </head>
 <body>
 <div class="header">
-  <div class="brand">☕ Suki 猫娘咖啡厅</div>
+  <div class="brand">Suki猫娘咖啡厅</div>
   <div class="subtitle">女仆预约详情</div>
 </div>
 <div class="detail-img-wrap">

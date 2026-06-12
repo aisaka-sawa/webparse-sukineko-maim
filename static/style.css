@@ -3,8 +3,8 @@ body {
   width: {width}px;
   font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
                "Noto Sans SC", sans-serif;
-  background: #FDF6F0;
-  color: #4A3728;
+  background: linear-gradient(180deg, #EAFBFF 0%, #FFF8E8 52%, #FFF1EA 100%);
+  color: #214E52;
   padding: 16px 12px 20px;
   line-height: 1.4;
 }
@@ -12,20 +12,20 @@ body {
   text-align: center;
   margin-bottom: 14px;
   padding-bottom: 10px;
-  border-bottom: 1.5px solid #E8D5C4;
+  border-bottom: 1.5px solid #A8E6E1;
 }
 .header .brand {
   font-size: 18px;
   font-weight: 700;
-  color: #6B4226;
+  color: #006D77;
 }
 .header .stats {
   font-size: 11px;
-  color: #8B7355;
+  color: #5F7580;
   margin-top: 4px;
 }
 .header .stats .stat-em {
-  color: #6B4226;
+  color: #F57C00;
   font-weight: 600;
 }
 
@@ -38,11 +38,12 @@ body {
 
 /* ── 单栏卡片 ── */
 .card {
-  background: #FFFFFF;
+  background: rgba(255, 255, 255, 0.96);
   border-radius: 12px;
   padding: 10px;
   margin-bottom: 10px;
-  box-shadow: 0 1px 6px rgba(107,66,38,0.06);
+  border: 1px solid rgba(127, 214, 204, 0.42);
+  box-shadow: 0 2px 8px rgba(0, 109, 119, 0.08);
   display: flex;
   align-items: flex-start;
   gap: 8px;
@@ -53,7 +54,7 @@ body {
   border-radius: 8px;
   object-fit: cover;
   flex-shrink: 0;
-  background: #F0E6DA;
+  background: #DDF6F4;
 }
 .card-info {
   flex: 1;
@@ -62,7 +63,7 @@ body {
 .card-name {
   font-size: 14px;
   font-weight: 700;
-  color: #4A3728;
+  color: #214E52;
   margin-bottom: 2px;
 }
 .card-tags {
@@ -75,8 +76,8 @@ body {
   font-size: 9px;
   padding: 1px 6px;
   border-radius: 6px;
-  background: #F5EDE3;
-  color: #8B7355;
+  background: #E3F6FF;
+  color: #277DA1;
   white-space: nowrap;
 }
 .card-badge {
@@ -92,21 +93,22 @@ body {
   margin-top: 2px;
 }
 .slot-occupied {
-  color: #8B7355;
-  background: #F5F0EB;
+  color: #5F7580;
+  background: #F1FAF8;
 }
 .slot-free {
-  color: #388E3C;
-  background: #E8F5E9;
+  color: #00897B;
+  background: #DDF7EF;
   font-weight: 500;
 }
 
 /* ── 双栏卡片 ── */
 .card-2col {
-  background: #FFFFFF;
+  background: rgba(255, 255, 255, 0.96);
   border-radius: 10px;
   padding: 8px;
-  box-shadow: 0 1px 4px rgba(107,66,38,0.06);
+  border: 1px solid rgba(127, 214, 204, 0.38);
+  box-shadow: 0 2px 6px rgba(0, 109, 119, 0.07);
   display: flex;
   align-items: flex-start;
   gap: 6px;
@@ -117,7 +119,7 @@ body {
   border-radius: 6px;
   object-fit: cover;
   flex-shrink: 0;
-  background: #F0E6DA;
+  background: #DDF6F4;
 }
 .card-2col .card-name {
   font-size: 11px;
@@ -149,8 +151,8 @@ body {
   font-size: 10px;
   padding: 2px 8px;
   border-radius: 8px;
-  background: #E8F5E9;
-  color: #388E3C;
+  background: #DDF7EF;
+  color: #00897B;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -158,8 +160,8 @@ body {
   font-size: 10px;
   padding: 2px 8px;
   border-radius: 8px;
-  background: #FFF3E0;
-  color: #E65100;
+  background: #FFF0C7;
+  color: #E67700;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -167,8 +169,8 @@ body {
   font-size: 10px;
   padding: 2px 8px;
   border-radius: 8px;
-  background: #FFEBEE;
-  color: #C62828;
+  background: #FFE0DC;
+  color: #D84315;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -176,8 +178,8 @@ body {
   font-size: 10px;
   padding: 2px 8px;
   border-radius: 8px;
-  background: #F5F5F5;
-  color: #9E9E9E;
+  background: #EEF3F5;
+  color: #78909C;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -186,22 +188,22 @@ body {
 .empty-state {
   text-align: center;
   padding: 36px 16px;
-  color: #A08C7A;
+  color: #6F8B96;
   font-size: 13px;
 }
 .footer {
   text-align: center;
   margin-top: 14px;
   padding-top: 10px;
-  border-top: 1px solid #E8D5C4;
+  border-top: 1px solid #A8E6E1;
   font-size: 10px;
-  color: #B8A590;
+  color: #7A98A2;
 }
 
 /* ── 详情页样式 ── */
 .subtitle {
   font-size: 13px;
-  color: #8B7355;
+  color: #5F7580;
   margin-top: 4px;
 }
 .status-tag {
@@ -213,16 +215,16 @@ body {
   font-weight: 600;
 }
 .status-open {
-  background: #E8F5E9;
-  color: #2E7D32;
+  background: #DDF7EF;
+  color: #00897B;
 }
 .status-closed {
-  background: #FFEBEE;
-  color: #C62828;
+  background: #FFE0DC;
+  color: #D84315;
 }
 .status-full {
-  background: #FFEBEE;
-  color: #C62828;
+  background: #FFE0DC;
+  color: #D84315;
 }
 .maid-disabled-tag {
   display: inline-block;
@@ -231,8 +233,8 @@ body {
   border-radius: 12px;
   font-size: 12px;
   font-weight: 600;
-  background: #F5F5F5;
-  color: #9E9E9E;
+  background: #EEF3F5;
+  color: #78909C;
 }
 .detail-img-wrap {
   text-align: center;
@@ -243,7 +245,7 @@ body {
   max-height: 280px;
   border-radius: 14px;
   object-fit: cover;
-  background: #F0E6DA;
+  background: #DDF6F4;
 }
 .detail-header {
   text-align: center;
@@ -252,7 +254,7 @@ body {
 .detail-name {
   font-size: 22px;
   font-weight: 700;
-  color: #6B4226;
+  color: #006D77;
 }
 .detail-tags {
   display: flex;
@@ -265,29 +267,30 @@ body {
   font-size: 11px;
   padding: 3px 10px;
   border-radius: 10px;
-  background: #F5EDE3;
-  color: #8B7355;
+  background: #FFF0C7;
+  color: #B86200;
 }
 .detail-signature {
   font-size: 13px;
-  color: #A08C7A;
+  color: #6F8B96;
   margin-top: 6px;
   text-align: center;
 }
 .section-title {
   font-size: 14px;
   font-weight: 600;
-  color: #6B4226;
+  color: #006D77;
   margin-bottom: 10px;
   padding-left: 4px;
-  border-left: 3px solid #C87941;
+  border-left: 3px solid #FFB703;
 }
 .resv-card {
-  background: #FFFFFF;
+  background: rgba(255, 255, 255, 0.96);
   border-radius: 12px;
   padding: 12px 14px;
   margin-bottom: 10px;
-  box-shadow: 0 1px 4px rgba(107,66,38,0.06);
+  border: 1px solid rgba(127, 214, 204, 0.42);
+  box-shadow: 0 2px 6px rgba(0, 109, 119, 0.07);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -295,9 +298,9 @@ body {
 .resv-time {
   font-size: 14px;
   font-weight: 600;
-  color: #4A3728;
+  color: #214E52;
 }
 .resv-guest {
   font-size: 12px;
-  color: #8B7355;
+  color: #5F7580;
 }
