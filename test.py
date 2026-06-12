@@ -652,12 +652,12 @@ async def test_generate_available_maids_html() -> None:
 
     # 基本结构检查
     assert_in_substring("<!DOCTYPE html>", html, "HTML 声明")
-    assert_in_substring("Suki 猫娘咖啡厅", html, "品牌名称")
+    assert_in_substring("Suki猫娘咖啡厅", html, "品牌名称")
     assert_in_substring(f"width={RENDER_WIDTH}", html, f"viewport width={RENDER_WIDTH}")
 
     # CSS 注入
-    assert_in_substring("#FDF6F0", html, "背景色")
-    assert_in_substring("#6B4226", html, "主标题色")
+    assert_in_substring("#F4FAFF", html, "淡蓝背景色")
+    assert_in_substring("#1769AA", html, "淡蓝主标题色")
 
     # 女仆信息检查（一览模板只显示 name, tags, 预约槽位；不显示 signature）
     assert_in_substring("猫娘A", html, "包含猫娘A 名称")
@@ -773,7 +773,7 @@ async def test_generate_maid_detail_html() -> None:
     html = SukiBookingPlugin._generate_maid_detail_html(data, "猫娘A")
 
     assert_in_substring("<!DOCTYPE html>", html, "HTML 声明")
-    assert_in_substring("Suki 猫娘咖啡厅", html, "品牌名称")
+    assert_in_substring("Suki猫娘咖啡厅", html, "品牌名称")
     assert_in_substring("女仆预约详情", html, "页面标题")
     assert_in_substring("detail-img", html, "详情页图片")
     assert_in_substring("猫娘A", html, "女仆名称")
@@ -871,7 +871,7 @@ async def test_generate_maid_detail_html_no_reservations() -> None:
     }
     html = SukiBookingPlugin._generate_maid_detail_html(data, "猫娘A")
 
-    assert_in_substring("暂无预约记录", html, "暂无预约提示") or assert_in_substring("📭", html, "暂无预约 emoji")
+    assert_in_substring("暂无预约记录", html, "暂无预约提示")
 
     print("  无预约记录测试完成")
 
@@ -1074,9 +1074,9 @@ async def test_constants() -> None:
     css = _load_css(390)
     # CSS 模板中写的是 "width: {width}px"（带空格），替换后为 "width: 390px"
     assert_in_substring("width: 390px", css, "CSS 包含注入后的宽度")
-    assert_in_substring("#FDF6F0", css, "暖奶油白背景")
-    assert_in_substring("#6B4226", css, "咖啡棕主色")
-    assert_in_substring("#C87941", css, "焦糖橙强调")
+    assert_in_substring("#F4FAFF", css, "淡蓝背景")
+    assert_in_substring("#1769AA", css, "淡蓝主色")
+    assert_in_substring("#64B5F6", css, "淡蓝强调")
 
     # HEADERS 应包含 Supabase 认证
     assert_in("apikey", HEADERS, "HEADERS 包含 apikey")

@@ -720,6 +720,39 @@ class SukiBookingPlugin(MaiBotPlugin):
 
     # ── 渲染 & 发送 ───────────────────────────────────────────────────
 
+    async def _render_png_only(self, html: str) -> str | None:
+        """将 HTML 渲染为 PNG，返回 base64 数据，不发送到聊天流"""
+        try:
+            result = await self.ctx.render.html2png(
+                html=html,
+                wait_until="load",
+                timeout_ms=10000,
+                allow_network=True,
+            )
+        except Exception as e:
+            self.ctx.logger.error("_render_png_only 渲染异常: %s", e)
+            return None
+
+        if not result:
+            self.ctx.logger.error("_render_png_only 返回空结果")
+            return None
+
+        if isinstance(result, str):
+            image_base64 = result
+        elif isinstance(result, dict):
+            image_base64 = result.get("image_base64") or result.get("data") or result.get("image") or ""
+        elif isinstance(result, bytes):
+            image_base64 = b64encode(result).decode("ascii")
+        else:
+            self.ctx.logger.error("_render_png_only 返回了未知类型: %s", type(result))
+            return None
+
+        if not image_base64:
+            self.ctx.logger.error("未能从 _render_png_only 结果中提取图片数据")
+            return None
+
+        return image_base64
+
     async def _render_and_send_png(self, html: str, stream_id: str) -> str | None:
         """将 HTML 渲染为 PNG 并发送到聊天流
 
@@ -775,7 +808,6 @@ class SukiBookingPlugin(MaiBotPlugin):
         "query_suki_booking",
         description=(
             "查询 Suki 猫娘咖啡厅的预约信息。"
-            "[重要：此工具最多只能调用一次！调用后直接使用返回的结果回复用户，不要再次调用此工具。]"
             "不指定 maid_name 时返回全体女仆一览（含可预约/已约 1 次/已约满三种状态）；"
             "指定 maid_name 时返回该女仆的详细预约情况（含所有预约记录）。"
             "每位女仆最多可被预约 2 次，预约数 ≥ 2 表示已约满。"
@@ -800,7 +832,6 @@ class SukiBookingPlugin(MaiBotPlugin):
     )
     async def handle_tool_query_booking(self, maid_name: str = "", limit: int = 1, **kwargs):
         """AI 工具调用：查询 Suki 预约信息，生成 PNG 图片返回"""
-        stream_id: str = kwargs.get("stream_id", "")
         self.ctx.logger.info("Tool query_suki_booking 被调用: maid_name=%s, limit=%d", maid_name, limit)
 
         data = await self._fetch_booking(limit=limit)
@@ -832,6 +863,20 @@ class SukiBookingPlugin(MaiBotPlugin):
         reservations = item.get("reservations", []) or []
         text_summary_parts: list[str] = []
 
+        def reservations_for_maid(maid: dict) -> list[dict]:
+            maid_vrcid = maid.get("vrcid", "")
+            maid_name_for_match = maid.get("name", "")
+            return [
+                r
+                for r in reservations
+                if (maid_vrcid and r.get("maidVrcid", "") == maid_vrcid)
+                or (
+                    not maid_vrcid
+                    and maid_name_for_match
+                    and r.get("maidName", "") == maid_name_for_match
+                )
+            ]
+
         target_maid_name = (maid_name and maid_name.strip()) or ""
         if target_maid_name:
             # 指定了女仆名称：只返回该女仆的信息
@@ -844,7 +889,7 @@ class SukiBookingPlugin(MaiBotPlugin):
             if target_maid is None:
                 text_summary_parts.append(f"未找到女仆「{target_maid_name}」的信息。")
             else:
-                m_reservations = [r for r in reservations if r.get("maidName") == target_maid_name]
+                m_reservations = reservations_for_maid(target_maid)
                 count = len(m_reservations)
                 disabled = target_maid.get("disabled", False)
                 if disabled:
@@ -867,7 +912,7 @@ class SukiBookingPlugin(MaiBotPlugin):
             for m in maids:
                 mname = m.get("name", "未知")
                 disabled = m.get("disabled", False)
-                m_reservations = [r for r in reservations if r.get("maidName") == mname]
+                m_reservations = reservations_for_maid(m)
                 count = len(m_reservations)
                 if disabled:
                     status = "今日休息"
@@ -881,14 +926,12 @@ class SukiBookingPlugin(MaiBotPlugin):
 
         text_summary = "\n".join(text_summary_parts)
 
-        # 尝试渲染并发送 PNG
-        image_base64 = None
-        if stream_id:
-            image_base64 = await self._render_and_send_png(html, stream_id)
+        # 只渲染，不发送——由 LLM 的 tool response 机制控制发送
+        image_base64 = await self._render_png_only(html)
 
         # 构建返回结果
         if image_base64:
-            self.ctx.logger.info("Tool query_suki_booking: 图片生成并发送成功")
+            self.ctx.logger.info("Tool query_suki_booking: 图片渲染成功（未发送）")
             return {
                 "success": True,
                 "content": desc + "\n" + text_summary,
@@ -1079,7 +1122,6 @@ class SukiBookingPlugin(MaiBotPlugin):
     )
     async def handle_tool_draw_maid(self, include_disabled: bool = True, limit: int = 1, **kwargs):
         """AI 工具调用：随机抽取女仆并返回详情 PNG 图片"""
-        stream_id: str = kwargs.get("stream_id", "")
         self.ctx.logger.info(
             "Tool draw_suki_maid 被调用: include_disabled=%s, limit=%d",
             include_disabled,
@@ -1120,13 +1162,11 @@ class SukiBookingPlugin(MaiBotPlugin):
         html = self._generate_maid_detail_html(item, maid_name, self._image_cache_hd)
         desc = f"已抽取女仆「{maid_name}」并生成预约详情图片"
 
-        # 尝试渲染并发送 PNG
-        image_base64 = None
-        if stream_id:
-            image_base64 = await self._render_and_send_png(html, stream_id)
+        # 只渲染，不发送——由 LLM 的 tool response 机制控制发送
+        image_base64 = await self._render_png_only(html)
 
         if image_base64:
-            self.ctx.logger.info("Tool draw_suki_maid: 图片生成并发送成功")
+            self.ctx.logger.info("Tool draw_suki_maid: 图片渲染成功（未发送）")
             return {
                 "success": True,
                 "content": desc,
