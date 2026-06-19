@@ -726,7 +726,7 @@ class SukiBookingPlugin(MaiBotPlugin):
             result = await self.ctx.render.html2png(
                 html=html,
                 wait_until="load",
-                timeout_ms=10000,
+                # timeout_ms=10000,
                 allow_network=True,
             )
         except Exception as e:
@@ -767,7 +767,7 @@ class SukiBookingPlugin(MaiBotPlugin):
             result = await self.ctx.render.html2png(
                 html=html,
                 wait_until="load",
-                timeout_ms=10000,
+                # timeout_ms=10000,
                 allow_network=True,
             )
         except Exception as e:
@@ -870,11 +870,7 @@ class SukiBookingPlugin(MaiBotPlugin):
                 r
                 for r in reservations
                 if (maid_vrcid and r.get("maidVrcid", "") == maid_vrcid)
-                or (
-                    not maid_vrcid
-                    and maid_name_for_match
-                    and r.get("maidName", "") == maid_name_for_match
-                )
+                or (not maid_vrcid and maid_name_for_match and r.get("maidName", "") == maid_name_for_match)
             ]
 
         target_maid_name = (maid_name and maid_name.strip()) or ""
